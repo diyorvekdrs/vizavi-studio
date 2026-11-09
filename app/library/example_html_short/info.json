@@ -1,0 +1,31 @@
+{
+ "episode": "example_html_short",
+ "date": "2026-10-26 04:17:53",
+ "duration": 12.853,
+ "scenes": [
+  [
+   "hook",
+   0,
+   3.971
+  ],
+  [
+   "point",
+   3.971,
+   7.988
+  ],
+  [
+   "outro",
+   7.988,
+   12.866666666666667
+  ]
+ ],
+ "engine": "html",
+ "preset": "Shorts / Reels / TikTok 9:16",
+ "size": [
+  540,
+  960
+ ],
+ "fps": 30,
+ "aspect": "9x16",
+ "brief_first_line": "Reference: responsive Short (9:16 + 16:9) - cards pop on beats/scenes, burned captions with the active word highlighted (words.js is generated from input/words.tsv)."
+}

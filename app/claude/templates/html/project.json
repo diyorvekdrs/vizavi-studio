@@ -1,0 +1,3 @@
+{"engine": "html", "width": 1080, "height": 1920, "fps": 30, "nfr": 600, "alpha": false, "responsive": true,
+ "scenes": [["hook", 0, 3.0], ["point", 3.0, 20.0]],
+ "cues": [[2.9, "example", "point card enters"]]}

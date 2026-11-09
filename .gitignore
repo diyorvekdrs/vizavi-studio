@@ -1,0 +1,27 @@
+# Only what is listed here is published. Everything else (settings, projects, models, the Python
+# environment, your own library, logs, backups) stays on this PC.
+/*
+!/.gitignore
+!/Install Vizavi Studio.cmd
+!/READ ME FIRST.txt
+!/Publish update.cmd
+!/app/
+/app/*
+!/app/studio/
+!/app/ui/
+!/app/kit/
+!/app/claude/
+!/app/setup/
+!/app/brands/
+!/app/library/
+/app/library/*
+!/app/library/example_*/
+!/app/README.md
+!/app/Vizavi Studio.pyw
+!/app/Start Vizavi Studio (if double-click does nothing).bat
+!/app/release.json
+__pycache__/
+*.pyc
+*.bak
+*.bak_before_retry
+/app/setup/patch_retry.py

@@ -1,0 +1,7 @@
+{
+ "name": "My Brand",
+ "colors": {"primary": "#f0a347", "secondary": "#e0563b", "background": "#0d0f14", "text": "#ffffff"},
+ "fonts": {"headline": "MyFont-Bold.ttf", "body": "MyFont-Regular.ttf"},
+ "logo": "logo.png",
+ "notes": "Tone: calm and confident. Logo always bottom-right at the end, never stretched."
+}

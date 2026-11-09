@@ -1,0 +1,26 @@
+{
+ "episode": "example_html_logo_alpha",
+ "date": "2026-10-26 04:10:46",
+ "duration": 3.0,
+ "scenes": [
+  [
+   "in",
+   0,
+   1.2
+  ],
+  [
+   "hold",
+   1.2,
+   3
+  ]
+ ],
+ "engine": "html",
+ "preset": "Logo sting / intro (transparent)",
+ "size": [
+  640,
+  360
+ ],
+ "fps": 60,
+ "aspect": "16x9",
+ "brief_first_line": "Reference: transparent logo sting - user logo from assets/, outBack scale-in, tracking-in wordmark, alpha export."
+}

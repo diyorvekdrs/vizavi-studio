@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:P;src:url(fonts/Poppins-Medium.ttf)}
+body{background:#0d0f14} #stage{background:radial-gradient(circle at 50% 30%,#22304a,#0d0f14 70%)}
+.card{position:absolute;left:8%;right:8%;top:16%;height:34%;border-radius:calc(var(--u)*4);
+ background:linear-gradient(135deg,#f0a347,#e0563b);display:flex;align-items:center;justify-content:center;
+ font:calc(var(--u)*9) P;color:#fff}
+.land .card{left:30%;right:30%;top:12%;height:50%}
+#cap{position:absolute;left:8%;right:12%;bottom:24%;text-align:center;font:calc(var(--u)*6) P;color:#fff;
+ text-shadow:0 0 calc(var(--u)*1) #000}
+#cap b{color:#f0a347}
+</style></head><body><div id="stage"><div class="card" id="card">1</div><div id="cap"></div></div>
+<script src="vz.js"></script><script src="words.js"></script><script>
+if(!VZ.isPortrait) document.body.classList.add('land');
+const card=document.getElementById('card'), cap=document.getElementById('cap');
+const SC=VZ.project.scenes;
+VZ.onFrame(t=>{
+  const k=SC.findIndex(s=>t>=s[1]&&t<s[2]); const s=SC[Math.max(0,k)];
+  const p=VZ.prog(t,s[1],s[1]+0.35,VZ.ease.outBack);
+  card.textContent=['Qora tuynuk','Issiqlik','Tugadi'][Math.max(0,k)];
+  card.style.transform=`scale(${0.6+0.4*p}) rotate(${(1-p)*-6}deg)`; card.style.opacity=VZ.prog(t,s[1],s[1]+0.2);
+  const i=WORDS.findIndex(w=>t>=w[0]&&t<=w[1]+0.25); if(i<0){cap.innerHTML='';return;}
+  const a=Math.max(0,i-2); cap.innerHTML=WORDS.slice(a,a+4).map((w,j)=>a+j===i?`<b>${w[2]}</b>`:w[2]).join(' ');
+});
+</script></body></html>

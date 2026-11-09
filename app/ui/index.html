@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vizavi Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230D1430'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23FFC46B' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='%23000'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/ui/app.css">
+</head>
+<body>
+<div id="wall" aria-hidden="true"><i></i></div>
+<div id="app">
+  <aside id="side">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="5.5" fill="#05070f"/></svg>
+      <span>Vizavi Studio</span>
+    </div>
+    <button class="btn primary wide" id="newBtn">New project</button>
+    <nav id="projects" aria-label="Projects"></nav>
+    <div class="side-foot">
+      <button class="link" id="openProjects">Projects folder</button>
+      <button class="link" id="settingsBtn">Settings</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <section id="empty" class="empty">
+      <h1>Drop a voice recording to start</h1>
+      <p>Narration, music, images, clips, a font folder, a script – drop them anywhere in this window.
+        Zips from Claude are picked up from Downloads on their own.</p>
+      <button class="btn primary" id="emptyNew">New project</button>
+    </section>
+    <section id="view" hidden></section>
+    <section id="setup" class="empty setup" hidden></section>
+  </main>
+
+  <footer id="status">
+    <div class="st-left">
+      <span class="dot" id="stDot"></span>
+      <span id="stLabel">Starting…</span>
+    </div>
+    <div class="st-bars" id="stBars" hidden>
+      <div class="bar step"><i id="stStep"></i></div>
+      <span id="stStepText"></span>
+      <div class="bar all"><i id="stAll"></i></div>
+      <span id="stAllText"></span>
+      <button class="btn ghost small" id="stopBtn">Stop</button>
+    </div>
+    <div class="st-right" id="stRight"></div>
+    <button class="link" id="logBtn" aria-expanded="false">Log</button>
+  </footer>
+  <pre id="log" hidden></pre>
+</div>
+
+<div id="updBar" hidden role="status"></div>
+<div id="restart" hidden role="alert"><div><strong>Updating Vizavi Studio…</strong><span>It restarts with the new version. This window reconnects by itself – keep it open.</span><span class="bar indet"><i></i></span></div></div>
+<div id="dead" hidden role="alert"><div><strong>This window is out of date</strong><span>Vizavi Studio was restarted. Close this window and open Vizavi Studio again – or try once more here.</span><button class="btn primary" id="deadBtn">Try again</button></div></div>
+<div id="upl" hidden role="status"><div><span id="uplText"></span><div class="bar"><i id="uplBar"></i></div></div></div>
+<div id="drop" hidden><div><strong>Drop to add</strong><span>Voice, music, images, clips, fonts, a folder or a zip from Claude</span></div></div>
+<div id="toasts" aria-live="polite"></div>
+<dialog id="dlg"></dialog>
+<script src="/ui/app.js"></script>
+</body>
+</html>

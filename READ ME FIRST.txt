@@ -1,0 +1,63 @@
+VIZAVI STUDIO - READ ME FIRST
+=============================
+
+Vizavi Studio makes videos together with Claude (claude.ai): you give it a voice recording (and music,
+pictures, a script...), it prepares a package, Claude designs the video, and your PC renders it.
+
+
+WHAT YOU NEED
+- Windows 10 (version 1809 or newer) or Windows 11, 64-bit
+- Internet for the first start (it downloads 2-8 GB, depending on your PC)
+- About 15 GB free disk space
+- A claude.ai account
+- A graphics card is NOT required. An NVIDIA card makes renders much faster; without one,
+  everything runs on the processor and the app tells Claude to keep scenes lighter.
+
+
+INSTALL (about 5-30 minutes, mostly waiting)
+1. Right-click the zip -> "Extract All..." -> open the extracted folder.
+2. Double-click "Install Vizavi Studio".
+   If Windows says "Windows protected your PC": click "More info" -> "Run anyway".
+   If it asks for permission to install the Microsoft Visual C++ runtime: click "Yes".
+3. The app opens and shows "Getting Vizavi Studio ready" while it installs what YOUR PC can use.
+   Keep it open until the bottom bar says "Ready". Later starts are instant.
+4. You can delete the downloaded zip and the extracted folder afterwards.
+
+You'll find "Vizavi Studio" on the Desktop and in the Start menu.
+Your videos are saved in your Videos folder -> "Vizavi Studio" (change it in Settings).
+
+
+MAKING A VIDEO
+1. Drop a voice recording (wav/mp3/m4a...) on the app window. Fill in "What I want"
+   (and "Take care of" for must-haves), choose a preset, click "Create package for Claude".
+2. Click "Copy message", open a NEW chat on claude.ai, drag the zip from the folder that opened
+   into the chat, paste the message (Ctrl+V) and send.
+3. When Claude replies with a zip, just download it. The app picks it up from your Downloads folder
+   and renders a preview.
+4. Watch the preview. Happy -> "Approve and render final". Changes wanted -> write notes, then drag
+   the review zip into the SAME Claude chat with the copied message.
+5. The final video appears in the project's output folder ("Open output folder").
+
+The first transcription downloads the speech models once (a few GB) - that one takes longer.
+
+
+IF SOMETHING GOES WRONG
+- Settings (bottom left) -> "Check and repair components". Settings -> "This PC" shows what the
+  app found on your computer and how it renders.
+- After installing/updating an NVIDIA driver, press "Check and repair components" too.
+- The log is at the bottom right of the app window.
+- To update: run the newer "Install Vizavi Studio" over it. Your projects and settings stay.
+- To remove: Windows Settings -> Apps -> "Vizavi Studio" -> Uninstall. Your videos stay.
+
+
+GOOD TO KNOW
+- For personal, non-commercial use: the precise word timing uses Meta's MMS model, licensed
+  CC-BY-NC 4.0 (non-commercial). You can turn it off in Settings.
+- Everything runs on your own PC; the app only talks to Claude through the zips you drag in, and looks
+  for new versions on GitHub (Settings -> Updates turns that off).
+
+UPDATES
+When a new version is out, the app shows "Vizavi Studio X is available" at the top.
+Click "What's new" to read about it and "Update now" to install it: it takes a minute and the
+window reconnects by itself. Your projects, settings and installed components are never touched.
+If something is wrong after an update: Settings -> Updates -> "Undo last update".
