@@ -88,8 +88,6 @@ You can delete the downloaded zip and the extracted folder now.
 
 ## Make your first video
 
-<img src="docs/screenshot-new-project.jpg" alt="The New project window: preset, narration, music and what you want" width="760" align="right">
-
 1. **Drop your voice recording** (wav, mp3, m4a…) on the window. Add music, pictures, clips or your script
    if you have them.
 2. **Fill in *What I want*** – the story, the mood, must-show moments. Use *Take care of* for things
@@ -103,7 +101,7 @@ You can delete the downloaded zip and the extracted folder now.
    - Want changes? → write notes, then drag the review zip into the **same** Claude chat with the copied message.
 7. Your video is in the project's **output** folder (**Open folder**).
 
-<br clear="right">
+<p align="center"><img src="docs/screenshot-new-project.jpg" alt="The New project window: preset, narration, music and what you want" width="760"></p>
 
 > [!NOTE]
 > The very first transcription downloads the speech models once (a few GB), so it takes longer than the next ones.
