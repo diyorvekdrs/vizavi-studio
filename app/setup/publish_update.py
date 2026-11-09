@@ -79,7 +79,9 @@ def main():
     stable.write_bytes((dist / zname).read_bytes())
     h = hashlib.sha256((dist / zname).read_bytes()).hexdigest()
     (dist / "SHA256SUMS.txt").write_text(f"{h}  {zname}\n{h}  {stable.name}\n", encoding="utf-8")
+    quick = ROOT / "Vizavi-Studio-Installer.cmd"      # the one-small-file installer (always fetches the newest)
     run("gh", "release", "create", f"v{new}", str(dist / zname), str(stable), str(dist / "SHA256SUMS.txt"),
+        *([str(quick)] if quick.exists() else []),
         "--repo", repo, "--title", f"Vizavi Studio {new}", "--notes", notes)
     print(f"\nDone. Vizavi Studio {new} is published: https://github.com/{repo}/releases/tag/v{new}")
     print("Friends' apps show 'Update available' (at their next start, or Settings -> Check now).")

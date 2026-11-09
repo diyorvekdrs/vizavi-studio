@@ -7,7 +7,11 @@
 **Turn a voice recording into a finished video – together with Claude.**
 You record your voice, Claude designs the video, your own PC renders it.
 
-[![Download for Windows](https://img.shields.io/badge/Download-for%20Windows-0A84FF?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/diyorvekdrs/vizavi-studio/releases/latest/download/Vizavi-Studio-Setup.zip)
+[![Download for Windows](https://img.shields.io/badge/Download-for%20Windows-0A84FF?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/diyorvekdrs/vizavi-studio/releases/latest/download/Vizavi-Studio-Installer.cmd)
+&nbsp;
+[![Download zip](https://img.shields.io/badge/or-download%20the%20zip-555?style=for-the-badge)](https://github.com/diyorvekdrs/vizavi-studio/releases/latest/download/Vizavi-Studio-Setup.zip)
+
+<sub>Or paste one line into PowerShell – see <a href="#install">Install</a></sub>
 
 ![Latest version](https://img.shields.io/github/v/release/diyorvekdrs/vizavi-studio?label=version&color=FF9F0A)
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%7C%2011-555)
@@ -61,28 +65,51 @@ Claude's answer from your Downloads folder by itself.
 ## Install
 
 > ⏱️ About 5–30 minutes, mostly waiting. You do this **once** – after that the app updates itself.
+> Pick **one** of the three ways – they all install the same thing.
 
-**1. Download** – click the blue **Download for Windows** button above
-(or open [Releases](https://github.com/diyorvekdrs/vizavi-studio/releases/latest) and download the zip under *Assets*).
+### ⭐ Way 1 – Quick installer (easiest)
 
-**2. Unzip** – right-click the downloaded zip → **Extract All…** → **Extract**.
-
-**3. Install** – open the extracted folder and double-click **`Install Vizavi Studio`**.
+1. Download **[Vizavi-Studio-Installer.cmd](https://github.com/diyorvekdrs/vizavi-studio/releases/latest/download/Vizavi-Studio-Installer.cmd)** – one tiny file.
+2. Double-click it. It downloads the newest version, checks it and installs it. Nothing to unzip.
 
 > [!TIP]
-> If Windows says **"Windows protected your PC"**, click **More info → Run anyway**.
-> The app is not signed by a company, so Windows warns about it the first time.
-> If it asks to install the **Microsoft Visual C++ runtime**, click **Yes**.
+> Your browser may say the file *"isn't commonly downloaded"* – choose **Keep** (in Edge: **⋯ → Keep → Keep anyway**).
+> When Windows says **"Windows protected your PC"**, click **More info → Run anyway**.
+> The app isn't signed by a company, so Windows warns about it the first time.
 
-**4. Let it get ready** – the app opens and shows *Getting Vizavi Studio ready*. It looks at your PC and
-installs only what your computer can use. Keep the window open until the bottom bar says **Ready**.
-Later starts are instant.
+### ⚡ Way 2 – One line in PowerShell
 
-That's it 🎉 You'll find **Vizavi Studio** on your Desktop and in the Start menu.
-You can delete the downloaded zip and the extracted folder now.
+1. Press **Win + X** and choose **Terminal** (or **Windows PowerShell**).
+2. Paste this line and press **Enter**:
+
+```powershell
+irm https://raw.githubusercontent.com/diyorvekdrs/vizavi-studio/main/get.ps1 | iex
+```
+
+It does exactly what the quick installer does – you can [read the script](get.ps1) first.
+
+### 📦 Way 3 – The zip (classic)
+
+1. Download **[Vizavi-Studio-Setup.zip](https://github.com/diyorvekdrs/vizavi-studio/releases/latest/download/Vizavi-Studio-Setup.zip)**.
+2. Right-click it → **Extract All…** → **Extract**.
+3. Open the extracted folder and double-click **`Install Vizavi Studio`**.
+
+### Then: let it get ready
+
+The app opens and shows *Getting Vizavi Studio ready*. It looks at your PC and installs only what your
+computer can use. Keep the window open until the bottom bar says **Ready**. Later starts are instant.
 
 > [!NOTE]
+> If it asks to install the **Microsoft Visual C++ runtime**, click **Yes**.
 > Already have an older Vizavi Studio? Just install over it – your projects and settings stay.
+
+## Open the app
+
+- 🖱️ Double-click **Vizavi Studio** on your **Desktop**, or
+- 🔎 press the **Windows key**, type **Vizavi** and press **Enter**, or
+- 🎙️ right-click any voice recording → **Send to → Vizavi Studio** – the app opens with it, ready for a new project.
+
+Tip: right-click the app in the taskbar → **Pin to taskbar** to keep it one click away.
 
 ---
 
