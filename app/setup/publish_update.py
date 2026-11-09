@@ -75,9 +75,11 @@ def main():
     run("git", "tag", f"v{new}")
     run("git", "push", "origin", "HEAD", "--tags")
     run("git", "archive", "--format=zip", "-o", str(dist / zname), f"v{new}")
+    stable = dist / "Vizavi-Studio-Setup.zip"          # same file under a fixed name: the README's download button
+    stable.write_bytes((dist / zname).read_bytes())
     h = hashlib.sha256((dist / zname).read_bytes()).hexdigest()
-    (dist / "SHA256SUMS.txt").write_text(f"{h}  {zname}\n", encoding="utf-8")
-    run("gh", "release", "create", f"v{new}", str(dist / zname), str(dist / "SHA256SUMS.txt"),
+    (dist / "SHA256SUMS.txt").write_text(f"{h}  {zname}\n{h}  {stable.name}\n", encoding="utf-8")
+    run("gh", "release", "create", f"v{new}", str(dist / zname), str(stable), str(dist / "SHA256SUMS.txt"),
         "--repo", repo, "--title", f"Vizavi Studio {new}", "--notes", notes)
     print(f"\nDone. Vizavi Studio {new} is published: https://github.com/{repo}/releases/tag/v{new}")
     print("Friends' apps show 'Update available' (at their next start, or Settings -> Check now).")

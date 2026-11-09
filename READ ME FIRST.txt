@@ -46,7 +46,7 @@ IF SOMETHING GOES WRONG
   app found on your computer and how it renders.
 - After installing/updating an NVIDIA driver, press "Check and repair components" too.
 - The log is at the bottom right of the app window.
-- To update: run the newer "Install Vizavi Studio" over it. Your projects and settings stay.
+- Updates come by themselves: "Vizavi Studio X is available" -> Update now (see UPDATES below).
 - To remove: Windows Settings -> Apps -> "Vizavi Studio" -> Uninstall. Your videos stay.
 
 

@@ -41,7 +41,8 @@ def check(repo, current, api=None):
     data = json.loads(_get((api or API).format(repo=repo)))
     tag = str(data.get("tag_name") or "")
     assets = {a.get("name"): a for a in data.get("assets") or []}
-    zipa = next((a for n, a in assets.items() if n and n.lower().endswith(".zip")), None)
+    zips = [a for n, a in assets.items() if n and n.lower().endswith(".zip")]
+    zipa = next((a for a in zips if a.get("name", "").lower().startswith("vizavi-studio-")), zips[0] if zips else None)
     sums = assets.get("SHA256SUMS.txt")
     return {"current": current, "latest": tag.lstrip("vV"), "newer": bool(zipa) and newer(tag, current),
             "notes": (data.get("body") or "").strip()[:4000], "page": data.get("html_url"),
