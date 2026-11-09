@@ -31,6 +31,10 @@ def bump(cur, how):
 
 
 def main():
+    try:
+        sys.stdout.reconfigure(errors="replace")       # a Windows console can't show every character
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("how", nargs="?", default="patch")
     ap.add_argument("--notes", default="")
@@ -76,7 +80,7 @@ def main():
     run("gh", "release", "create", f"v{new}", str(dist / zname), str(dist / "SHA256SUMS.txt"),
         "--repo", repo, "--title", f"Vizavi Studio {new}", "--notes", notes)
     print(f"\nDone. Vizavi Studio {new} is published: https://github.com/{repo}/releases/tag/v{new}")
-    print("Friends' apps show 'Update available' (at their next start, or Settings → Check now).")
+    print("Friends' apps show 'Update available' (at their next start, or Settings -> Check now).")
 
 
 if __name__ == "__main__":
