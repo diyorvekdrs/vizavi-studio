@@ -128,7 +128,8 @@ $sf = Join-Path $dest 'settings.json'
 if (-not (Test-Path $sf)) {
     $videos = [Environment]::GetFolderPath('MyVideos')
     if (-not $videos -or $videos -match 'OneDrive') { $videos = $env:USERPROFILE }
-    $cfg = [ordered]@{ projects_dir = (Join-Path $videos 'Vizavi Studio'); models_dir = (Join-Path $dest 'models') }
+    # models stay in the shared cache in the user profile (not in the app folder), so a reinstall never downloads them again
+    $cfg = [ordered]@{ projects_dir = (Join-Path $videos 'Vizavi Studio') }
     [IO.File]::WriteAllText($sf, ($cfg | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 }
 

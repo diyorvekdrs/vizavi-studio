@@ -53,6 +53,19 @@ def hf_cache():
     return Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
 
 
+APP_DIR = Path(__file__).resolve().parent.parent
+
+
+def model_caches():
+    """every place a model may already be: the configured cache first, then the shared one in the user profile and
+    the app's old models folder (so a reinstall or a changed setting never downloads a model that is on the PC)"""
+    out = []
+    for p in (hf_cache(), Path.home() / ".cache" / "huggingface" / "hub", APP_DIR / "models"):
+        if p not in out:
+            out.append(p)
+    return out
+
+
 def ensure_model(name):
     """local path of the faster-whisper model; downloads it once with visible progress."""
     from faster_whisper.utils import download_model
@@ -61,10 +74,14 @@ def ensure_model(name):
         repo = _MODELS.get(name, name)
     except Exception:
         repo = name if "/" in name else f"Systran/faster-whisper-{name}"
-    try:
-        return download_model(name, local_files_only=True)
-    except Exception:
-        pass
+    for cache in model_caches():
+        try:
+            path = download_model(name, local_files_only=True, cache_dir=str(cache))
+            if cache != hf_cache():
+                log(f"Using the Whisper model '{name}' already on this PC ({cache})")
+            return path
+        except Exception:
+            pass
     total = MODEL_GB.get(name, 0)
     folder = hf_cache() / ("models--" + repo.replace("/", "--"))
     log(f"Downloading the Whisper model '{name}' (~{total or '?'} GB, one time only). "
@@ -166,8 +183,9 @@ def run_faster(audio, dur, a, prompt):
 def ensure_ct2(model_id, models_dir):
     """converts a Hugging Face Whisper fine-tune (e.g. islomov/rubaistt_v2_medium) to CTranslate2 once."""
     out = Path(models_dir) / (model_id.replace("/", "__") + "-ct2")
-    if (out / "model.bin").exists() and (out / "tokenizer.json").exists():
-        return out
+    for cand in (out, APP_DIR / "models" / out.name, Path.home() / ".cache" / "huggingface" / "vizavi" / out.name):
+        if (cand / "model.bin").exists() and (cand / "tokenizer.json").exists():
+            return cand
     log(f"Preparing the Uzbek model {model_id} (one time: download ~3 GB + convert, a few minutes)…")
     folder = hf_cache() / ("models--" + model_id.replace("/", "--"))
     done = threading.Event()

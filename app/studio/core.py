@@ -123,6 +123,10 @@ def load_settings():
         s.update(data)
         if "episodes_dir" in data and "projects_dir" not in data:
             s["projects_dir"] = data["episodes_dir"]
+    # older installers set models_dir to <app>\models: everything downloaded there was lost with every reinstall.
+    # Blank = the shared model cache in the user profile, which survives reinstalls (old files there are still found).
+    if str(s.get("models_dir") or "").strip().rstrip("\\/").lower() == str(APP / "models").lower():
+        s["models_dir"] = ""
     if not str(s.get("downloads_dir") or "").strip():
         from .hw import downloads_dir
         s["downloads_dir"] = downloads_dir()
@@ -535,7 +539,8 @@ def transcribe(pr, nar, script, o, S, ctx):
     if S.get("script_as_hint") and (script or "").strip():
         cmd += ["--prompt", pr.src / "script.txt"]
     if lang == "uz" and str(S.get("uzbek_model", "")).strip():
-        cmd += ["--uz-model", S["uzbek_model"], "--models-dir", str(Path(S.get("models_dir") or APP / "models").expanduser())]
+        cmd += ["--uz-model", S["uzbek_model"], "--models-dir",
+                str(Path(S.get("models_dir") or Path.home() / ".cache" / "huggingface" / "vizavi").expanduser())]
     menv = {"HF_HUB_CACHE": str(Path(S["models_dir"]).expanduser())} if str(S.get("models_dir", "")).strip() else {}
     menv["VZ_SPEECH_COMPUTE"] = (S.get("hw") or {}).get("speech_compute", "float16")
     try:
