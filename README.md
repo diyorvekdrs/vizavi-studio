@@ -57,7 +57,7 @@ Claude's answer from your Downloads folder by itself.
 | | |
 |---|---|
 | 💻 **Computer** | Windows 10 (1809 or newer) or Windows 11, 64-bit |
-| 💾 **Disk space** | about 15 GB free |
+| 💾 **Disk space** | about 15 GB free – on any drive, you choose during install |
 | 🌐 **Internet** | for the first start – it downloads 2–8 GB of components, depending on your PC |
 | 🤖 **Claude** | a [claude.ai](https://claude.ai) account |
 | 🎮 **Graphics card** | *not required.* An NVIDIA card makes renders much faster |
@@ -93,6 +93,17 @@ It does exactly what the quick installer does – you can [read the script](get.
 1. Download **[Vizavi-Studio-Setup.zip](https://github.com/diyorvekdrs/vizavi-studio/releases/latest/download/Vizavi-Studio-Setup.zip)**.
 2. Right-click it → **Extract All…** → **Extract**.
 3. Open the extracted folder and double-click **`Install Vizavi Studio`**.
+
+### Choose where it goes
+
+The installer asks where to put Vizavi Studio. Press **Enter** for the normal place on drive **C:**, or
+type another drive letter (for example **D**) or a folder – useful when C: is almost full. In another folder,
+*everything* big goes there: the program, the speech models (3–8 GB), the download caches and your projects.
+
+> [!TIP]
+> Already installed on C: and running out of space? Run the installer again (any of the three ways) and type the
+> other drive. It moves the program, the installed components and the speech models there – nothing is
+> downloaded twice – and offers to move your projects and delete the old copy.
 
 ### Then: let it get ready
 
@@ -166,6 +177,14 @@ Open **Settings → Check and repair components** and keep the window open until
 
 Open the app folder (`%LOCALAPPDATA%\VizaviStudio`) and run **`Start Vizavi Studio (if double-click does nothing).bat`**.
 If it shows an error, send it to the person who shared the app with you.
+</details>
+
+<details>
+<summary><b>Drive C: is full</b></summary>
+
+Run the installer again and type another drive letter when it asks where to install – see
+[Choose where it goes](#choose-where-it-goes). **Settings → This PC** shows where the program, the speech models
+and your projects are, and how much space is left on each drive.
 </details>
 
 <details>

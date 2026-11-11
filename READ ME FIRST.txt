@@ -19,6 +19,9 @@ INSTALL (about 5-30 minutes, mostly waiting)
 2. Double-click "Install Vizavi Studio".
    If Windows says "Windows protected your PC": click "More info" -> "Run anyway".
    If it asks for permission to install the Microsoft Visual C++ runtime: click "Yes".
+   It asks WHERE to install: press Enter for drive C:, or type another drive letter (e.g. D) or a folder
+   when C: is almost full - then the program, speech models, caches and projects all go there.
+   Already installed and want it on another drive? Run the installer again and type that drive.
 3. The app opens and shows "Getting Vizavi Studio ready" while it installs what YOUR PC can use.
    Keep it open until the bottom bar says "Ready". Later starts are instant.
 4. You can delete the downloaded zip and the extracted folder afterwards.

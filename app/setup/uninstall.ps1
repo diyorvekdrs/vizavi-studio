@@ -2,8 +2,12 @@
 # Projects (videos) stay where they are. Plain ASCII on purpose (Windows PowerShell 5).
 $ErrorActionPreference = 'Continue'
 $dest = Split-Path -Parent $PSScriptRoot
-$projects = $null
-try { $projects = (Get-Content -Raw (Join-Path $dest 'settings.json') | ConvertFrom-Json).projects_dir } catch {}
+$projects = $null; $models = $null; $cache = $null
+try {
+    $cfg = Get-Content -Raw (Join-Path $dest 'settings.json') | ConvertFrom-Json
+    $projects = $cfg.projects_dir; $models = $cfg.models_dir; $cache = $cfg.cache_dir
+} catch {}
+function GB($p) { try { return [math]::Round(((Get-ChildItem $p -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum) / 1GB, 1) } catch { return 0 } }
 
 # projects that live INSIDE the app folder would be deleted with it: move them out first
 $inside = $false
@@ -14,7 +18,7 @@ Write-Host ""
 Write-Host "  Uninstall Vizavi Studio" -ForegroundColor White
 Write-Host ""
 Write-Host "  This removes the app from $dest"
-Write-Host "  (including its Python environment and downloaded speech models)."
+Write-Host "  (including its Python environment)."
 if ($inside) { Write-Host "  Your projects are inside the app folder: they will be MOVED to your Documents folder first." }
 elseif ($projects) { Write-Host "  Your projects in $projects are NOT deleted." }
 Write-Host ""
@@ -44,5 +48,12 @@ Set-Location $env:TEMP
 Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
 if (Test-Path $dest) { Write-Host "  Some files are still in use. Restart the PC and delete $dest by hand." -ForegroundColor Yellow }
 else { Write-Host "  Vizavi Studio was removed." -ForegroundColor Green }
+# installed in a folder of your choice: its download cache goes too, the speech models only if you say so
+if ($cache -and (Test-Path $cache)) { Remove-Item -LiteralPath $cache -Recurse -Force -ErrorAction SilentlyContinue }
+if ($models -and (Test-Path $models)) {
+    $mgb = GB $models
+    $a = Read-Host "  Also delete the downloaded speech models in $models ($mgb GB)? A new install would download them again. [y/N]"
+    if ($a -match '^[Yy]') { Remove-Item -LiteralPath $models -Recurse -Force -ErrorAction SilentlyContinue; Write-Host "  Speech models deleted." }
+}
 Write-Host "  (Chromium for the HTML engine stays in $env:LOCALAPPDATA\ms-playwright - delete it if no other app uses it.)"
 Start-Sleep -Seconds 4

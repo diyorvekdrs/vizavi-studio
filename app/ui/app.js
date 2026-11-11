@@ -545,6 +545,8 @@ function settingsDialog() {
       <label class="f s2"><span>Uzbek model (empty = off)</span><input type="text" id="um" value="${esc(s.uzbek_model || "")}"></label></div></div>
     <div class="fs"><h3>This PC<small>Speech models, render workers and what gets installed follow this.</small></h3><div>
       <ul class="hw">${(S.meta.hw || []).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+      <ul class="hw where">${(S.meta.storage || []).map(x => `<li><b>${esc(x.what)}:</b> ${esc(x.path)}${x.free_gb != null ? ` <span class="quiet">(${x.free_gb} GB free)</span>` : ""}</li>`).join("")}</ul>
+      <p class="quiet" style="margin:0 0 10px">To move Vizavi Studio to another drive, run the installer again and choose that drive – it takes everything along.</p>
       ${(S.meta.warnings || []).map(w => `<p class="err">${esc(w)}</p>`).join("")}
       <button class="btn" id="rc">Check and repair components</button></div></div>
     </div><div class="df"><span class="err grow" id="seterr"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="sv">Save settings</button></div>`, d => {

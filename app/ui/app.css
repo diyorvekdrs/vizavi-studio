@@ -411,3 +411,5 @@ img.sref { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; fle
 #restart .bar { display: block; height: 5px; margin-top: 6px; }
 pre.notes-text { white-space: pre-wrap; font: 14px/1.5 var(--font); margin: 0; }
 #updBar:not([hidden]) ~ #toasts { top: 74px; }
+
+.hw.where li { word-break: break-all; }

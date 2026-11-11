@@ -574,7 +574,7 @@ def meta():
         "safe_area": OD.SAFE_AREA, "langs": OD.LANGS, "styles": list(OD.STYLES), "brands": OD.list_brands(),
         "presets": list(OD.PRESETS) + [k for k in S.get("user_presets", {}) if k not in OD.PRESETS],
         "saved_styles": core.list_styles(S),
-        "version": VERSION, "can_undo_update": UP.has_backup(APP),
+        "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),
         "warnings": getattr(ST, "warnings", []),
         "settings": {k: S.get(k) for k in ("standing_rules", "watch_downloads", "auto_play_preview", "precise_timing",
@@ -615,6 +615,18 @@ def review_job(pr, ver, notes):
     ST.toast("move", f"“{pr.name}”: review package ready – copy the message and drag the zip into Claude.")
     ST.focus = pr.name
     reveal(z)
+
+
+def storage_info(S):
+    """where the program, the speech models and the projects are, with the free space on each drive"""
+    def free(p):
+        try:
+            return round(shutil.disk_usage(Path(p).anchor or p).free / 1e9, 1)
+        except OSError:
+            return None
+    models = S.get("models_dir") or str(Path.home() / ".cache" / "huggingface")
+    return [{"what": w, "path": str(p), "free_gb": free(p)} for w, p in
+            (("Program", APP), ("Speech models", models), ("Projects", S.get("projects_dir") or ""))]
 
 
 def act(a):
@@ -1175,7 +1187,21 @@ def already_running(argv):
     return True      # something with our name owns the port; do not start a second engine on top of it
 
 
+def storage_env():
+    """installed in a folder of your choice: big downloads (pip packages, Chromium, GPU kernels) go there too,
+    not to drive C:. Set before the component check runs, so every helper process inherits it."""
+    try:
+        cache = json.loads((APP / "settings.json").read_text(encoding="utf-8")).get("cache_dir")
+    except (OSError, ValueError):
+        cache = None
+    if cache:
+        c = Path(cache)
+        for k, sub in (("PIP_CACHE_DIR", "pip"), ("PLAYWRIGHT_BROWSERS_PATH", "ms-playwright"), ("CUPY_CACHE_DIR", "cupy")):
+            os.environ.setdefault(k, str(c / sub))
+
+
 def main(argv, open_ui=True):
+    storage_env()
     if "--no-window" in argv:                 # restarted by the updater: the open window reconnects by itself
         argv = [a for a in argv if a != "--no-window"]
         open_ui = False
