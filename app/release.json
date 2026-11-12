@@ -1,5 +1,5 @@
 {
-"version": "2.3.2",
+"version": "2.4.0",
 "files": [
 "README.md",
 "Start Vizavi Studio (if double-click does nothing).bat",
@@ -11,6 +11,7 @@
 "claude/ENGINE_python.md",
 "claude/PLAN_TEMPLATE.md",
 "claude/RULES.md",
+"claude/TASK_agent.md",
 "claude/TASK_error.md",
 "claude/TASK_request.md",
 "claude/TASK_review.md",
@@ -63,10 +64,12 @@
 "setup/uninstall.ps1",
 "studio/__init__.py",
 "studio/align.py",
+"studio/claude_link.py",
 "studio/core.py",
 "studio/core_paths.py",
 "studio/deps.py",
 "studio/hw.py",
+"studio/mcp_server.py",
 "studio/media.py",
 "studio/mms_align.py",
 "studio/order.py",
