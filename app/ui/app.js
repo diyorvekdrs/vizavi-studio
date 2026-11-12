@@ -663,15 +663,24 @@ const LANG = { uz: "Uzbek", auto: "Detect automatically", en: "English", ru: "Ru
 const nice = v => String(v).replace(/ · /g, ", ").replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
 const base = p => (p || "").split(/[\\/]/).pop();
 
+/* New project: five short steps (like an upload wizard) instead of one long form.
+   1 Voice & files  2 Details  3 Format  4 Look  5 Review. A preset (step 3) fills every technical setting; the
+   fine controls sit under "Change size, captions, sound…" and keep the preset's values until you touch them. */
+const NP_STEPS = [["files", "Voice & files"], ["details", "Details"], ["format", "Format"], ["look", "Look"], ["review", "Review"]];
 async function newProject(prefill = {}) {
   if (!S.meta) return toast("Still starting – try again in a moment", "warn", 4000);
-  Object.assign(NP, { narration: null, music: null, assets: [], script: "" }, prefill);
+  Object.assign(NP, { narration: null, music: null, assets: [], script: "", step: 0, o: null }, prefill);
   const M = S.meta, preset = M.last_preset && M.presets.includes(M.last_preset) ? M.last_preset : M.presets[0];
-  openDialog(`<div class="dh"><h2>New project</h2><button class="link" data-close>Close</button></div><div class="db" id="npb"></div>
+  openDialog(`<div class="dh"><h2>New project</h2><button class="link" data-close>Close</button></div>
+    <ol class="steps" id="npSteps" aria-label="Steps">${NP_STEPS.map(([k, t], i) =>
+      `<li><button type="button" data-go="${i}" aria-label="Step ${i + 1}: ${esc(t)}"><i>${i + 1}</i><span>${esc(t)}</span></button></li>`).join("")}</ol>
+    <div class="db" id="npb"></div>
     <div class="df"><span class="err grow" id="nperr" role="alert"></span>
     <span class="row" id="presetBox" hidden><input type="text" id="presetName" placeholder="Name this preset" maxlength="40" aria-label="Preset name" style="width:180px">
       <button class="btn small primary" id="presetOk">Save</button><button class="btn small" id="presetNo">Cancel</button></span>
-    <button class="btn" id="savePreset">Save as preset</button>
+    <button class="btn" id="savePreset" title="Keep these settings as a preset for next time">Save as preset</button>
+    <button class="btn" id="npBack">Back</button>
+    <button class="btn primary" id="npNext">Next</button>
     <button class="btn primary" id="create">Create package for Claude</button></div>`, async () => {
     try { await fillForm(await api(`/api/preset?name=${encodeURIComponent(preset)}`), preset); }
     catch (e) { $("#nperr").textContent = e.message; return; }
@@ -679,111 +688,216 @@ async function newProject(prefill = {}) {
     $("#presetNo").onclick = () => { $("#presetBox").hidden = true; $("#savePreset").hidden = false; };
     $("#presetOk").onclick = savePreset;
     $("#presetName").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); savePreset(); } else if (e.key === "Escape") { e.stopPropagation(); $("#presetNo").click(); } };
+    $("#npBack").onclick = () => goStep(NP.step - 1);
+    $("#npNext").onclick = () => goStep(NP.step + 1, true);
+    $("#npSteps").onclick = e => { const b = e.target.closest("[data-go]"); if (b) goStep(+b.dataset.go); };
   });
 }
+function goStep(i, guard) {      // guard: the Next button checks that step 1 has what the video needs
+  i = Math.max(0, Math.min(NP_STEPS.length - 1, i));
+  if (guard && i > NP.step && NP.step === 0 && !NP.narration && !NP.music && (NP.o && NP.o.duration.mode !== "fixed")) {
+    $("#nperr").textContent = "Add the voice recording (or a music file) first – the length of the video comes from it.";
+    return;
+  }
+  $("#nperr").textContent = "";
+  NP.step = i;
+  document.querySelectorAll("#npb .npstep").forEach(s => { s.hidden = s.dataset.step !== NP_STEPS[i][0]; });
+  document.querySelectorAll("#npSteps li").forEach((li, k) => { li.className = k < i ? "done" : k === i ? "cur" : "";
+    li.querySelector("button").setAttribute("aria-current", k === i ? "step" : "false"); });
+  const last = i === NP_STEPS.length - 1;
+  $("#npBack").hidden = i === 0; $("#npNext").hidden = last; $("#create").hidden = !last;
+  $("#savePreset").hidden = !last || !$("#presetBox").hidden;
+  if (last) renderReview();
+  const db = $("#npb"); db.scrollTop = 0;
+  const f = db.querySelector(`.npstep[data-step="${NP_STEPS[i][0]}"] [data-first]`);
+  if (f && dlg.open) f.focus({ preventScroll: true });
+}
 
-const TEXTF = ["name", "wants", "care", "purpose", "believe", "script"];
+const TEXTF = ["name", "wants", "care", "believe", "script"];
 function typedText() {      // only what you typed yourself survives a change of preset
   const keep = {};
   for (const id of TEXTF) { const el = $("#" + id); if (el && el.dataset.dirty) keep[id] = el.value; }
   const sc = $("#script"); if (sc) NP.script = sc.value;
   return keep;
 }
+const presetTitle = n => n.replace(/\s*\(.*\)\s*$/, "");
+const presetSub = n => (/\((.*)\)\s*$/.exec(n) || [])[1] || "";
+function aspectBox(w, h) {     // a small frame of the right shape on each preset card
+  const k = 26 / Math.max(w, h);
+  return `<span class="ab" style="width:${Math.max(8, Math.round(w * k))}px;height:${Math.max(8, Math.round(h * k))}px"></span>`;
+}
 async function fillForm(o, preset, keep = {}) {
   const M = S.meta, sizeKey = Object.entries(M.sizes).find(([k, v]) => v[0] === o.size[0] && v[1] === o.size[1])?.[0] || "custom";
-  for (const k of ["name", "wants", "care", "purpose", "believe"]) if (keep[k] !== undefined) o[k] = keep[k];
+  for (const k of ["name", "wants", "care", "believe"]) if (keep[k] !== undefined) o[k] = keep[k];
+  NP.o = o;
   const name = o.name || (NP.narration ? base(NP.narration).replace(/\.[^.]+$/, "") : "");
+  const cards = M.preset_cards || {}, rules = (M.settings.standing_rules || "").split("\n").map(x => x.trim()).filter(Boolean);
+  const styles = M.saved_styles || [];
   $("#npb").innerHTML = `
-  <div class="fs"><h3>Start from<small>A preset fills everything below; change what you like.</small></h3><div class="fg">
-    <label class="f s2"><span>Preset</span><select id="preset">${optl(M.presets, preset)}</select></label>
-    <label class="f"><span>Project name</span><input type="text" id="name" value="${esc(name)}" placeholder="from the voice file" autofocus></label></div></div>
-  <div class="fs"><h3>Voice and music</h3><div class="fg">
-    <div class="f s3"><span>Narration</span><div class="slot" id="slotN"></div></div>
-    <div class="f s3"><span>Music</span><div class="slot" id="slotM"></div></div>
-    <label class="f"><span>Sound in the video</span><select id="aexp">${opt(M.audio_export, o.audio.export)}</select></label>
-    <label class="f"><span>Loudness</span><select id="loud">${opt(M.loudness, String(o.audio.loudness))}</select></label>
-    <label class="f"><span>Narration language</span><select id="lang">${optl(M.langs, o.language, v => LANG[v] || v)}</select></label>
-    <label class="chk sw s3"><input type="checkbox" id="gm" ${o.audio.generate_music ? "checked" : ""}>Claude composes a music bed when there's no music file</label></div></div>
-  <div class="fs"><h3>Your words<small>Take care of is binding: Claude must tick off every item.</small></h3><div class="fg">
-    <label class="f s3"><span>What I want</span><textarea id="wants" rows="3" placeholder="Story, mood, must-show moments, references">${esc(o.wants || "")}</textarea></label>
-    <label class="f s3"><span>Take care of</span><textarea id="care" rows="2" placeholder="Must-haves and must-nots, accuracy, pitfalls">${esc(o.care || "")}</textarea></label>
-    <label class="f s2"><span>After watching, viewers should believe…</span><input type="text" id="believe" value="${esc(o.believe || "")}" placeholder="One plain sentence, e.g. “a black hole would stretch Earth before swallowing it”"></label>
-    <label class="f"><span>Kind of video</span><select id="kind">${opt(S.meta.kinds || { auto: "Let Claude decide" }, o.kind || "auto")}</select></label>
-    <label class="f s3"><span>Script (recommended – exact spelling for captions)</span><textarea id="script" rows="3">${esc(NP.script)}</textarea></label></div></div>
-  <div class="fs"><h3>Format</h3><div class="fg">
-    <label class="f"><span>Size</span><select id="size">${optl(Object.keys(M.sizes), sizeKey, nice)}<option value="custom" ${sizeKey === "custom" ? "selected" : ""}>Custom</option></select></label>
-    <label class="f"><span>Width × height</span><span class="row" style="flex-wrap:nowrap"><input type="number" id="w" value="${o.size[0]}" min="64" step="2" aria-label="Width"><input type="number" id="h" value="${o.size[1]}" min="64" step="2" aria-label="Height"></span></label>
-    <label class="f"><span>Frame rate</span><select id="fps">${optl(M.fps, o.fps)}</select></label>
-    <div class="f s3"><span>Also deliver as</span><div class="togs">${M.extra_variants.map(v => `<label class="chk tog"><input type="checkbox" class="var" value="${v}" ${o.variants.includes(v) ? "checked" : ""}>${v}</label>`).join("")}</div></div>
-    <label class="f"><span>Length</span><select id="dmode">${opt(M.duration, o.duration.mode)}</select></label>
-    <label class="f"><span>Seconds (fixed length)</span><input type="number" id="secs" value="${o.duration.seconds}" step="0.5" min="1"></label>
-    <label class="f"><span>Calm ending after the voice (s)</span><input type="number" id="tail" value="${o.duration.tail}" step="0.5" min="0"></label></div></div>
-  <div class="fs"><h3>Text and output</h3><div class="fg">
-    <label class="f"><span>Captions</span><select id="caps">${opt(M.captions, o.captions)}</select></label>
-    <label class="f"><span>Safe area</span><select id="safe">${opt(M.safe_area, o.safe_area)}</select></label>
-    <label class="f"><span>On-screen text</span><input type="text" id="tamt" value="${esc(o.text_amount)}"></label>
-    <div class="f s3"><span>Files</span><div class="togs">${Object.entries(M.formats).map(([k, v]) => `<label class="chk tog"><input type="checkbox" class="fmt" value="${k}" ${o.formats.includes(k) ? "checked" : ""}>${esc(v.split(" (")[0])}</label>`).join("")}
-      <label class="chk tog"><input type="checkbox" id="alpha" ${o.alpha ? "checked" : ""}>Transparent background</label></div></div>
-    <label class="f"><span>Engine</span><select id="eng">${opt(M.engines, o.engine)}</select></label>
-    <label class="f s2"><span>Workflow</span><select id="rev">${opt(M.review, o.review)}</select></label></div></div>
-  <div class="fs"><h3>Look</h3><div class="fg">
-    <label class="f s3"><span>Match a saved style</span><span class="row" style="flex-wrap:nowrap;align-items:center">
-      <select id="sref"><option value="">No – use the style below</option>${(M.saved_styles || []).map(s => `<option value="${esc(s.id)}" ${s.id === o.style_ref ? "selected" : ""}>${esc(s.name)} (from ${esc(s.source_project)})</option>`).join("")}</select>
-      <img id="srefImg" class="sref" alt="" hidden></span><small class="quiet" id="srefNote"></small></label>
-    <label class="f"><span>Style</span><select id="sty">${optl(M.styles, o.style_preset, nice)}</select></label>
-    <label class="f"><span>Brand</span><select id="brand"><option value="">None</option>${optl(M.brands, o.brand)}</select></label>
-    <label class="f"><span>Style notes</span><input type="text" id="snotes" value="${esc(o.style)}"></label>
-    <label class="f s3"><span>What the video is for</span><input type="text" id="purpose" value="${esc(o.purpose)}" placeholder="e.g. YouTube explainer on what happens if Earth falls into a black hole"></label></div></div>
-  <div class="fs"><h3>Assets<small>Images, clips, logos, fonts, sounds. Drop them on this window too.</small></h3><div>
-    <div class="chips" id="assets"></div>
-    <div class="row" style="margin-top:8px"><button class="btn small" id="addFiles">Add files</button><button class="btn small" id="addFolder">Add a folder</button></div></div></div>`;
+  <section class="npstep" data-step="files">
+    <p class="lead">Start with the voice recording – everything is timed to it.</p>
+    <div class="fg">
+      <div class="f s3"><span>Voice recording</span><div class="slot big" id="slotN"></div></div>
+      <label class="f"><span>Spoken language</span><select id="lang">${optl(M.langs, o.language, v => LANG[v] || v)}</select></label>
+      <div class="f s2"><span>Music <small class="quiet">(optional)</small></span><div class="slot" id="slotM"></div></div>
+      <label class="chk sw s3" id="gmRow"><input type="checkbox" id="gm" ${o.audio.generate_music ? "checked" : ""}>No music file? Let Claude compose a quiet music bed</label>
+      <label class="f s3"><span>Script <small class="quiet">(optional – paste it for exact spelling of names and captions)</small></span><textarea id="script" rows="3" placeholder="The text you read in the recording">${esc(NP.script)}</textarea></label>
+      <div class="f s3"><span>Pictures, clips, logos, fonts <small class="quiet">(optional – or drop them on this window)</small></span>
+        <div class="chips" id="assets"></div>
+        <div class="row"><button class="btn small" id="addFiles">Add files</button><button class="btn small" id="addFolder">Add a folder</button></div></div>
+    </div>
+  </section>
+  <section class="npstep" data-step="details" hidden>
+    <p class="lead">Tell Claude what the video is about. “What I want” matters most – everything else here is optional.</p>
+    <div class="fg">
+      <label class="f s2"><span>Project name</span><input type="text" id="name" value="${esc(name)}" placeholder="from the voice file" data-first></label>
+      <label class="f"><span>Kind of video</span><select id="kind">${opt(M.kinds || { auto: "Let Claude decide" }, o.kind || "auto")}</select></label>
+      <label class="f s3"><span>What I want</span><textarea id="wants" rows="4" placeholder="The story, the mood, moments that must be shown, videos you like">${esc(o.wants || "")}</textarea></label>
+      <label class="f s3"><span>After watching, viewers should believe… <small class="quiet">(one sentence – Claude builds every scene around it)</small></span><input type="text" id="believe" value="${esc(o.believe || "")}" placeholder="e.g. a black hole would stretch Earth before swallowing it"></label>
+      <label class="f s3"><span>Take care of <small class="quiet">(must-haves and must-nots – Claude has to tick off every one)</small></span><textarea id="care" rows="2" placeholder="e.g. the logo stays visible at the end; no fantasy visuals">${esc(o.care || "")}</textarea>
+        <small class="quiet">${rules.length ? `Your ${rules.length} rule${rules.length === 1 ? "" : "s"} from Settings (“${esc(rules[0].slice(0, 60))}”${rules.length > 1 ? "…" : ""}) are added automatically – no need to repeat them.` : "Rules you want in every project go in Settings → My rules."}</small></label>
+    </div>
+  </section>
+  <section class="npstep" data-step="format" hidden>
+    <p class="lead">Where will it be watched? The choice sets size, frame rate, captions and sound – change them below if you need to.</p>
+    <select id="preset" class="vh" aria-hidden="true" tabindex="-1">${optl(M.presets, preset)}</select>
+    <div class="pcards" role="radiogroup" aria-label="Format">${M.presets.map(n => { const c = cards[n] || {};
+      return `<label class="pcard"><input type="radio" name="pcard" value="${esc(n)}" ${n === preset ? "checked" : ""} ${n === preset ? "data-first" : ""}>
+        ${c.w ? aspectBox(c.w, c.h) : ""}<b>${esc(presetTitle(n))}</b>${presetSub(n) ? `<small>${esc(presetSub(n))}</small>` : ""}<small class="quiet">${esc(c.line || "")}${c.user ? " · your preset" : ""}</small></label>`; }).join("")}</div>
+    <details class="adv" id="advFmt"><summary>Change size, captions, sound…</summary>
+    <div class="fs"><h3>Picture</h3><div class="fg">
+      <label class="f"><span>Size</span><select id="size">${optl(Object.keys(M.sizes), sizeKey, nice)}<option value="custom" ${sizeKey === "custom" ? "selected" : ""}>Custom</option></select></label>
+      <label class="f"><span>Width × height</span><span class="row" style="flex-wrap:nowrap"><input type="number" id="w" value="${o.size[0]}" min="64" step="2" aria-label="Width"><input type="number" id="h" value="${o.size[1]}" min="64" step="2" aria-label="Height"></span></label>
+      <label class="f"><span>Frame rate</span><select id="fps">${optl(M.fps, o.fps)}</select></label>
+      <div class="f s3"><span>Also deliver as</span><div class="togs">${M.extra_variants.map(v => `<label class="chk tog"><input type="checkbox" class="var" value="${v}" ${o.variants.includes(v) ? "checked" : ""}>${v}</label>`).join("")}
+        <label class="chk tog"><input type="checkbox" id="alpha" ${o.alpha ? "checked" : ""}>Transparent background</label></div></div></div></div>
+    <div class="fs"><h3>Length</h3><div class="fg">
+      <label class="f"><span>Length</span><select id="dmode">${opt(M.duration, o.duration.mode)}</select></label>
+      <label class="f" id="secsF"><span>Seconds</span><input type="number" id="secs" value="${o.duration.seconds}" step="0.5" min="1"></label>
+      <label class="f" id="tailF"><span>Calm ending after the voice (s)</span><input type="number" id="tail" value="${o.duration.tail}" step="0.5" min="0"></label></div></div>
+    <div class="fs"><h3>Text</h3><div class="fg">
+      <label class="f"><span>Captions</span><select id="caps">${opt(M.captions, o.captions)}</select></label>
+      <label class="f"><span>Keep clear of the app's buttons</span><select id="safe">${opt(M.safe_area, o.safe_area)}</select></label>
+      <label class="f"><span>Other text on screen</span><input type="text" id="tamt" value="${esc(o.text_amount)}"></label></div></div>
+    <div class="fs"><h3>Sound</h3><div class="fg">
+      <label class="f s2"><span>Sound in the video</span><select id="aexp">${opt(M.audio_export, o.audio.export)}</select></label>
+      <label class="f"><span>Loudness</span><select id="loud">${opt(M.loudness, String(o.audio.loudness))}</select></label></div></div>
+    <div class="fs"><h3>Files and engine</h3><div class="fg">
+      <div class="f s3"><span>Files</span><div class="togs">${Object.entries(M.formats).map(([k, v]) => `<label class="chk tog"><input type="checkbox" class="fmt" value="${k}" ${o.formats.includes(k) ? "checked" : ""}>${esc(v.split(" (")[0])}</label>`).join("")}</div></div>
+      <label class="f"><span>Engine</span><select id="eng">${opt(M.engines, o.engine)}</select></label>
+      <label class="f s2"><span>Workflow</span><select id="rev">${opt(M.review, o.review)}</select></label></div></div>
+    </details>
+  </section>
+  <section class="npstep" data-step="look" hidden>
+    <p class="lead">How should it look? Pick a style you saved from an earlier video, or a general style.</p>
+    <select id="sref" class="vh" aria-hidden="true" tabindex="-1"><option value="">No – use the style below</option>${styles.map(s => `<option value="${esc(s.id)}" ${s.id === o.style_ref ? "selected" : ""}>${esc(s.name)} (from ${esc(s.source_project)})</option>`).join("")}</select>
+    ${styles.length ? `<h3 class="sub">Your saved styles</h3><div class="scards" role="radiogroup" aria-label="Saved style">
+      <label class="scard"><input type="radio" name="scard" value="" ${!o.style_ref ? "checked" : ""} data-first><span class="thumb none">—</span><b>None</b><small class="quiet">use a general style</small></label>
+      ${styles.map(s => `<label class="scard"><input type="radio" name="scard" value="${esc(s.id)}" ${s.id === o.style_ref ? "checked" : ""}>
+        ${s.thumb ? `<img class="thumb" src="/style_thumb?id=${encodeURIComponent(s.id)}" alt="">` : `<span class="thumb none">${esc(s.engine || "")}</span>`}<b>${esc(s.name)}</b><small class="quiet">from ${esc(s.source_project)}</small></label>`).join("")}</div>
+      <small class="quiet" id="srefNote"></small>` : `<small class="quiet" id="srefNote"></small>`}
+    <h3 class="sub" id="styHead">General style</h3>
+    <select id="sty" class="vh" aria-hidden="true" tabindex="-1">${optl(M.styles, o.style_preset, nice)}</select>
+    <div class="scards text" role="radiogroup" aria-label="General style" id="styCards">${M.styles.map(k => `<label class="scard"><input type="radio" name="sty" value="${esc(k)}" ${k === o.style_preset ? "checked" : ""} ${!styles.length && k === o.style_preset ? "data-first" : ""}>
+      <b>${esc(nice(k))}</b><small class="quiet">${esc((M.style_desc || {})[k] || "")}</small></label>`).join("")}</div>
+    <div class="fg" style="margin-top:12px">
+      <label class="f s2"><span>Style notes <small class="quiet">(optional)</small></span><input type="text" id="snotes" value="${esc(o.style)}" placeholder="e.g. warm colours, big bold type, slow camera"></label>
+      <label class="f"><span>Brand kit</span><select id="brand"><option value="">None</option>${optl(M.brands, o.brand)}</select></label></div>
+  </section>
+  <section class="npstep" data-step="review" hidden><div id="npReview"></div></section>`;
   for (const id of TEXTF) if (keep[id] !== undefined && $("#" + id)) $("#" + id).dataset.dirty = 1;
   $("#npb").oninput = e => { if (TEXTF.includes(e.target.id)) e.target.dataset.dirty = 1; };
+  $("#npb").onchange = e => {
+    const t = e.target;
+    if (t.name === "pcard") { const s = $("#preset"); s.value = t.value; s.dispatchEvent(new Event("change", { bubbles: false })); }
+    if (t.name === "scard") { $("#sref").value = t.value; showRef(); }
+    if (t.name === "sty") $("#sty").value = t.value;
+    if (t.id === "dmode") lengthFields();
+  };
   $("#preset").onchange = async e => {
-    const k = typedText();
-    try { fillForm(await api(`/api/preset?name=${encodeURIComponent(e.target.value)}`), e.target.value, k); }
-    catch (err) { $("#nperr").textContent = err.message; }
+    const k = typedText(), step = NP.step, adv = $("#advFmt").open;
+    try {
+      await fillForm(await api(`/api/preset?name=${encodeURIComponent(e.target.value)}`), e.target.value, k);
+      $("#advFmt").open = adv; goStep(step);
+    } catch (err) { $("#nperr").textContent = err.message; }
   };
   const showRef = () => {
-    const s = (M.saved_styles || []).find(x => x.id === $("#sref").value), img = $("#srefImg");
-    img.hidden = !(s && s.thumb); if (s && s.thumb) img.src = `/style_thumb?id=${encodeURIComponent(s.id)}`;
-    $("#srefNote").textContent = s ? (s.note ? `You like: ${s.note}` : "Claude gets its frames and code and makes the new video in the same look.") : "";
+    const s = styles.find(x => x.id === $("#sref").value);
+    $("#srefNote").textContent = s ? (s.note ? `You liked: ${s.note}` : "Claude gets its frames and code and makes the new video in the same look.") : "";
+    $("#styCards").classList.toggle("muted", !!s);
+    $("#styHead").textContent = s ? "General style (the saved style decides)" : "General style";
   };
   $("#sref").onchange = showRef; showRef();
+  const lengthFields = () => { const m = $("#dmode").value; $("#secsF").hidden = m !== "fixed"; $("#tailF").hidden = m !== "narration"; };
+  lengthFields();
   $("#size").onchange = e => { const v = M.sizes[e.target.value]; if (v) { $("#w").value = v[0]; $("#h").value = v[1]; } };
   $("#addFiles").onclick = () => pick(false, paths => { NP.assets.push(...paths); renderSlots(); });
   $("#addFolder").onclick = () => pick(true, paths => { NP.assets.push(...paths); renderSlots(); });
   renderSlots();
+  goStep(NP.step || 0);
 }
 
 function renderSlots() {
   const slot = (key, el, label) => {
     const v = NP[key];
     $(el).innerHTML = v ? `<span class="chip"><span>${esc(base(v))}</span><button aria-label="Remove ${label}" data-rm="${key}">×</button></span>`
-      : `<span class="none">${key === "narration" ? "Drop the voice recording on this window" : "Optional – drop a music file"}</span>`;
+      : `<span class="none">${key === "narration" ? "Drop the voice recording here or anywhere on this window" : "Drop a music file, or leave it empty"}</span>`;
     const b = document.createElement("button"); b.className = "btn small"; b.textContent = v ? "Replace" : "Choose";
+    if (key === "narration") b.dataset.first = "";
     b.onclick = () => pick(false, ps => { if (ps[0]) { NP[key] = ps[0]; renderSlots(); } }, "audio/*", false); $(el).append(b);
   };
   slot("narration", "#slotN", "narration"); slot("music", "#slotM", "music");
+  const gm = $("#gmRow"); if (gm) gm.hidden = !!NP.music;
+  const nm = $("#name"); if (nm && !nm.value && !nm.dataset.dirty && NP.narration) nm.value = base(NP.narration).replace(/\.[^.]+$/, "");
   $("#assets").innerHTML = NP.assets.length ? NP.assets.map((a, i) => `<span class="chip"><span>${esc(base(a))}</span><button aria-label="Remove" data-rma="${i}">×</button></span>`).join("")
-    : `<span class="none" style="color:var(--quiet);font-size:13px">No assets</span>`;
+    : `<span class="none" style="color:var(--quiet);font-size:13px">None yet</span>`;
   $("#npb").onclick = e => {
     const r = e.target.closest("[data-rm]"); if (r) { NP[r.dataset.rm] = null; renderSlots(); }
     const ra = e.target.closest("[data-rma]"); if (ra) { NP.assets.splice(+ra.dataset.rma, 1); renderSlots(); }
+    const ed = e.target.closest("[data-edit]"); if (ed) goStep(+ed.dataset.edit);
   };
 }
 
+function renderReview() {
+  const o = readForm(), M = S.meta;
+  const st = (M.saved_styles || []).find(x => x.id === o.style_ref);
+  const short = (t, n = 140) => { t = String(t || "").trim(); return t.length > n ? t.slice(0, n - 1) + "…" : t; };
+  const rules = (M.settings.standing_rules || "").split("\n").filter(x => x.trim()).length;
+  const row = (label, value, step, empty) => `<div class="rv"><span class="rl">${esc(label)}</span><span class="rvv ${value ? "" : "quiet"}">${value ? esc(value) : esc(empty || "–")}</span><button class="link" data-edit="${step}">Edit</button></div>`;
+  const warn = [];
+  if (!NP.narration) warn.push(NP.music ? "No voice recording – the video follows the music." : "No voice recording.");
+  if (NP.narration && !($("#script").value || "").trim() && o.language === "uz") warn.push("No script: names and captions are spelled from speech recognition – Claude fixes what it can. Paste the script in step 1 for exact spelling.");
+  if (!o.wants.trim() && !o.believe) warn.push("“What I want” is empty – Claude decides the story itself.");
+  if (!o.name) warn.push("The project needs a name (step 2).");
+  if (NP.narration && !/voice/.test(o.audio.export)) warn.push(`Your voice will not be heard in the exported video (“${(M.audio_export || {})[o.audio.export] || o.audio.export}”) – it only times the pictures. Change it in Format → Change size, captions, sound… if you want it in.`);
+  $("#npReview").innerHTML = `<p class="lead">Check everything once – then the app prepares the package for Claude.</p>
+    ${warn.length ? `<ul class="npwarn">${warn.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+    <div class="rvbox">
+    ${row("Voice", NP.narration ? `${base(NP.narration)} · ${LANG[o.language] || o.language}` + (($("#script").value || "").trim() ? ` · script ${$("#script").value.trim().split(/\s+/).length} words` : " · no script") : "", 0, "none")}
+    ${row("Music and files", [NP.music ? base(NP.music) : (o.audio.generate_music ? "Claude composes music" : "no music"),
+      NP.assets.length ? `${NP.assets.length} file${NP.assets.length === 1 ? "" : "s"}` : "no files"].join(" · "), 0)}
+    ${row("Name", o.name, 1)}
+    ${row("What I want", short(o.wants), 1, "Claude decides")}
+    ${row("Viewers should believe", short(o.believe), 1, "not set")}
+    ${row("Take care of", short(o.care) + (rules ? `${o.care.trim() ? " + " : ""}${rules} rule${rules === 1 ? "" : "s"} from Settings` : ""), 1, "nothing extra")}
+    ${row("Format", `${presetTitle(o.preset)} · ${o.size[0]}×${o.size[1]} · ${o.fps} fps${o.variants.length ? " · also " + o.variants.join(", ") : ""} · ${((M.captions || {})[o.captions] || o.captions).toLowerCase()}`, 2)}
+    ${row("Sound", (M.audio_export || {})[o.audio.export] || o.audio.export, 2)}
+    ${row("Look", st ? `Saved style “${st.name}”` : nice(o.style_preset) + (o.style ? ` · ${short(o.style, 60)}` : "") + (o.brand ? ` · brand ${o.brand}` : ""), 3)}
+    </div>`;
+}
+
 function readForm() {
-  const q = s => $(s).value, num = s => +$(s).value;
+  const q = s => $(s).value, num = s => +$(s).value, base0 = NP.o || {};
   return {
+    ...base0,          // what the preset set and this form doesn't show (e.g. "purpose" from an older preset)
     preset: q("#preset"), name: q("#name").trim(), size: [num("#w"), num("#h")],
     variants: [...document.querySelectorAll(".var:checked")].map(x => x.value), fps: +q("#fps"),
     duration: { mode: q("#dmode"), seconds: num("#secs"), tail: num("#tail") },
-    audio: { export: q("#aexp"), loudness: q("#loud"), generate_music: $("#gm").checked },
+    audio: { ...(base0.audio || {}), export: q("#aexp"), loudness: q("#loud"), generate_music: $("#gm").checked && !NP.music },
     language: q("#lang"), captions: q("#caps"), safe_area: q("#safe"), text_amount: q("#tamt"),
     formats: [...document.querySelectorAll(".fmt:checked")].map(x => x.value), alpha: $("#alpha").checked,
     engine: q("#eng"), review: q("#rev"), style_preset: q("#sty"), brand: q("#brand"), style: q("#snotes"),
-    purpose: q("#purpose"), wants: q("#wants"), care: q("#care"), believe: q("#believe").trim(), kind: q("#kind"),
+    purpose: base0.purpose || "", wants: q("#wants"), care: q("#care"), believe: q("#believe").trim(), kind: q("#kind"),
     style_ref: q("#sref") || "", style_ref_name: ((S.meta.saved_styles || []).find(x => x.id === q("#sref")) || {}).name || "",
     standing_rules: S.meta.settings.standing_rules || "",
   };
@@ -793,7 +907,11 @@ async function createProject() {
   try {
     await api("/api/new_project", { order: readForm(), narration: NP.narration, music: NP.music, assets: NP.assets, script: $("#script").value });
     dlg.close(); toast("Preparing the narration – the request package follows", "info", 4000);
-  } catch (e) { $("#nperr").textContent = e.message; btn.disabled = false; }
+  } catch (e) {
+    $("#nperr").textContent = e.message; btn.disabled = false;
+    if (/narration|voice|recording/i.test(e.message)) goStep(0), $("#nperr").textContent = e.message;
+    else if (/name/i.test(e.message)) goStep(1), $("#nperr").textContent = e.message;
+  }
 }
 function presetInput() {
   $("#savePreset").hidden = true; $("#presetBox").hidden = false; $("#presetName").focus();
@@ -805,6 +923,8 @@ async function savePreset() {
     await api("/api/save_preset", { name, order: readForm() }); S.meta = await api("/api/meta");
     $("#presetNo").click(); $("#nperr").textContent = ""; toast(`Preset “${name}” saved`, "info", 2500);
     const sel = $("#preset"); if (sel && ![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name));
+    const pc = $(".pcards"); if (pc && ![...pc.querySelectorAll("input")].some(i => i.value === name)) pc.insertAdjacentHTML("beforeend",
+      `<label class="pcard"><input type="radio" name="pcard" value="${esc(name)}"><b>${esc(name)}</b><small class="quiet">your preset</small></label>`);
   } catch (e) { $("#nperr").textContent = e.message; }
 }
 

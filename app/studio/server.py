@@ -595,6 +595,7 @@ def meta():
         "formats": OD.FORMATS, "engines": OD.ENGINES, "review": OD.REVIEW, "loudness": OD.LOUDNESS,
         "safe_area": OD.SAFE_AREA, "kinds": OD.KINDS, "langs": OD.LANGS, "styles": list(OD.STYLES), "brands": OD.list_brands(),
         "presets": list(OD.PRESETS) + [k for k in S.get("user_presets", {}) if k not in OD.PRESETS],
+        "preset_cards": preset_cards(S), "style_desc": OD.STYLES,
         "saved_styles": core.list_styles(S), "trash": TR.list_trash(S), "trash_days": TR.KEEP_DAYS,
         "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),
@@ -603,6 +604,27 @@ def meta():
                                            "uzbek_model", "projects_dir", "downloads_dir", "whisper_model",
                                            "light_effects", "check_updates")},
     }
+
+
+def preset_cards(S):
+    """what each preset makes, for the cards in New project: size, fps, length, captions"""
+    OD = ST.core.OD
+    out = {}
+    for name in list(OD.PRESETS) + [k for k in S.get("user_presets", {}) if k not in OD.PRESETS]:
+        try:
+            o = OD.from_preset(name, S.get("user_presets"))
+        except Exception:
+            continue
+        w, h = o["size"]
+        bits = [f"{w}×{h}", f"{o['fps']} fps"]
+        d = o["duration"]
+        bits.append({"narration": "as long as the voice", "music": "as long as the music"}.get(d["mode"], f"{d['seconds']:g} s"))
+        if str(o.get("captions", "none")).startswith("burned"):
+            bits.append("captions")
+        if o.get("alpha"):
+            bits.append("transparent")
+        out[name] = {"w": w, "h": h, "line": " · ".join(bits), "user": name not in OD.PRESETS}
+    return out
 
 
 SETTING_KEYS = ("standing_rules", "watch_downloads", "auto_play_preview", "precise_timing", "uzbek_model",

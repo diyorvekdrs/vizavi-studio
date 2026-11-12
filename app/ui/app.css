@@ -428,3 +428,49 @@ ul.issues .rk { flex: none; font-size: 11px; font-weight: 600; padding: 1px 7px;
   background: var(--glass2); color: var(--label); box-shadow: inset 0 0 0 .5px var(--sep); }
 .chip:hover { background: var(--glass3); }
 .chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ---------- New project: steps ---------- */
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+ol.steps { list-style: none; display: flex; gap: 0; margin: 0; padding: 0 24px 12px; border-bottom: .5px solid var(--sep); }
+ol.steps li { flex: 1; position: relative; }
+ol.steps li + li::before { content: ""; position: absolute; left: calc(-50% + 19px); right: calc(50% + 19px); top: 12px; height: 2px; border-radius: 1px; background: var(--sep); z-index: 0; }
+ol.steps li.done + li::before, ol.steps li.done + li.cur::before { background: var(--blue); }
+ol.steps button { position: relative; z-index: 1; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--label2); font: 12.5px var(--font); }
+ol.steps i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 600;
+  background: var(--fill); color: var(--label2); box-shadow: inset 0 0 0 .5px var(--sep); transition: background .2s, color .2s; }
+ol.steps li.cur button { color: var(--label); font-weight: 600; }
+ol.steps li.cur i { background: var(--blue); color: var(--on-tint); box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 22%, transparent); }
+ol.steps li.done i { background: color-mix(in srgb, var(--blue) 22%, transparent); color: var(--blue); }
+ol.steps button:focus-visible i { outline: 2px solid var(--blue); outline-offset: 2px; }
+.npstep { min-height: 360px; padding-top: 10px; }
+.npstep .lead { margin: 4px 2px 14px; color: var(--label2); font-size: 14px; }
+.npstep h3.sub { margin: 16px 2px 8px; font: 600 14px var(--display); color: var(--label); }
+.slot.big { min-height: 72px; border-style: dashed; }
+.slot.big .none { font-size: 14.5px; }
+.f > span small, .f > small { font-weight: 400; }
+.pcards, .scards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.scards.text { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.pcard, .scard { position: relative; display: grid; gap: 3px; align-content: start; padding: 12px 14px; border-radius: 16px; cursor: pointer;
+  background: var(--glass); box-shadow: inset 0 0 0 .5px var(--sep); transition: box-shadow .15s, background .15s; }
+.pcard:hover, .scard:hover { background: var(--glass2); }
+.pcard input, .scard input { position: absolute; opacity: 0; pointer-events: none; }
+.pcard:has(input:checked), .scard:has(input:checked) { box-shadow: inset 0 0 0 2px var(--blue); background: color-mix(in srgb, var(--blue) 10%, var(--glass)); }
+.pcard:has(input:focus-visible), .scard:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pcard b, .scard b { font-size: 14px; color: var(--label); }
+.pcard small, .scard small { font-size: 12px; line-height: 1.35; }
+.pcard .ab { display: block; margin-bottom: 6px; border-radius: 4px; border: 2px solid var(--label2); height: 18px; }
+.scard .thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; margin-bottom: 6px; display: grid; place-items: center;
+  background: var(--fill); color: var(--label3); font-size: 12px; }
+.scards.muted { opacity: .45; }
+details.adv { margin-top: 16px; }
+details.adv > summary { cursor: pointer; color: var(--blue); font-size: 14px; padding: 6px 2px; list-style: revert; }
+.npwarn { margin: 0 0 14px; padding: 10px 14px 10px 30px; display: grid; gap: 4px; border-radius: 14px; background: color-mix(in srgb, var(--orange) 12%, transparent);
+  color: var(--label); font-size: 13.5px; line-height: 1.45; }
+.rvbox { border-radius: 18px; background: var(--glass); box-shadow: inset 0 0 0 .5px var(--sep); padding: 4px 16px; }
+.rv { display: grid; grid-template-columns: 170px 1fr auto; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: .5px solid var(--sep); font-size: 14px; }
+.rv:last-child { border-bottom: 0; }
+.rv .rl { color: var(--label2); }
+.rv .rvv { overflow-wrap: anywhere; }
+@media (max-width: 720px) { ol.steps span { display: none; } .rv { grid-template-columns: 1fr auto; } .rv .rl { grid-column: 1 / -1; } }
+dialog:has(#npSteps) { height: min(860px, 92vh); }      /* the wizard keeps one size while you move between steps */
