@@ -69,6 +69,16 @@ A failed render becomes `NAME__error_vN.zip`; drag it into the chat the same way
   `"reuse_unchanged": false` in settings.json (or env `VZ_NO_REUSE=1`) turns it off.
 - Heavy assets are sent to Claude as light copies; renders use your originals.
 
+## Chat mode (Claude desktop app, no zips)
+`studio/mcp_server.py` is a local connector (MCP over stdio) that the Claude desktop app starts; **Settings → Claude
+app → Connect** adds it to `%APPDATA%\Claude\claude_desktop_config.json` (other entries kept, a `.bak` copy made).
+Tools: `projects`, `open_project` (creates `<project>\agent\` = the request package's files, refreshed from this app
+version; episode/ seeded from the newest code), `list_files` / `read_file` / `write_file` / `edit_file` (writes only in
+`episode/`), `check` (sandbox_check with `--real`: stills, 6 fps motion strips, text/spec/camera/sound checks on this
+PC's GPU; images returned), `wait`, `retime`, `render_preview` (packs `episode/` and hands it to the running app,
+which renders as for a zip), `status`, `review` (the user's saved notes + the ranked report + frame sheets).
+Instructions for Claude: `claude/TASK_agent.md`.
+
 ## Uzbek transcription (maximum accuracy)
 1. **Whisper large-v3** on the GPU gives the timing (the app installs the CUDA libraries it needs).
 2. **islomov/rubaistt_v2_medium** (Whisper fine-tuned on ~475 h of Uzbek) gives better words

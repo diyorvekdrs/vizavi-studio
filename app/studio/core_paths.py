@@ -8,7 +8,7 @@ TOOLS = CL / "tools"
 ENGINES = CL / "engines"
 FONTS = CL / "fonts"
 LIB = APP / "library"
-SETTINGS = APP / "settings.json"
+SETTINGS = Path(os.environ["VZ_SETTINGS"]) if os.environ.get("VZ_SETTINGS") else APP / "settings.json"   # tests
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 

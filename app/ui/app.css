@@ -474,3 +474,6 @@ details.adv > summary { cursor: pointer; color: var(--blue); font-size: 14px; pa
 .rv .rvv { overflow-wrap: anywhere; }
 @media (max-width: 720px) { ol.steps span { display: none; } .rv { grid-template-columns: 1fr auto; } .rv .rl { grid-column: 1 / -1; } }
 dialog:has(#npSteps) { height: min(860px, 92vh); }      /* the wizard keeps one size while you move between steps */
+details.alt { flex-basis: 100%; margin-top: 4px; }
+details.alt > summary { cursor: pointer; color: var(--blue); font-size: 13.5px; }
+details.alt p { margin: 6px 0; color: var(--label2); font-size: 13.5px; }

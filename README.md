@@ -147,6 +147,21 @@ Tip: right-click the app in the taskbar → **Pin to taskbar** to keep it one cl
 > [!NOTE]
 > The very first transcription downloads the speech models once (a few GB), so it takes longer than the next ones.
 
+## Chat mode – no zips (Claude desktop app)
+
+If you use the [Claude desktop app](https://claude.ai/download), Claude can build the video **right on your PC**:
+
+1. In Vizavi Studio: **Settings → Claude app → Connect to the Claude app**, then quit the Claude app completely and
+   open it again (once).
+2. Make a new project as usual. When it says *Ask Claude in the Claude app*, click **Copy message for the Claude app**
+   and paste it in a new chat there.
+3. Claude writes the video, renders stills and motion strips on your graphics card, fixes what the checks find and
+   sends the version to Vizavi Studio – the preview appears by itself.
+4. Write your notes under the preview, click **Copy message for the Claude app**, paste it in the same chat.
+
+The Claude app may ask you to allow Vizavi Studio's tools the first time – allow them for this chat or always. Zips keep working for claude.ai in the
+browser – both ways can be mixed in one project.
+
 ## Updates
 
 When a new version is out, the app shows **"Vizavi Studio X is available"** at the top.

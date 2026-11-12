@@ -9,6 +9,7 @@ server.PORT = PORT
 for n, v in (("ALLOWED_HOSTS", {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}), ("ALLOWED_ORIGINS", {f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"})):
     getattr(server, n).clear(); getattr(server, n).update(v)
 tmp = tempfile.mkdtemp(prefix="vz_ui_")
+os.environ["VZ_CLAUDE_CONFIG"] = os.path.join(tmp, "claude_desktop_config.json")
 server.INCOMING = Path(tmp) / "incoming"
 server.TOKEN_FILE = Path(tmp) / ".tok"
 core.SETTINGS = __import__('pathlib').Path(tmp) / 'settings.json'   # never touch the real settings.json

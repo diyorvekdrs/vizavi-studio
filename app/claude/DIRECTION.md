@@ -87,7 +87,8 @@ intelligibility and reading beat any beat-grid; silence is a tool.
 
 ## 7. Check and self-critique (PLAN.md §5)
 `python tools/sandbox_check.py episode` (all), then `--scene NAME` for the scene you're improving.
-Look at the sheets as a sequence. Score every beat 1–5: **Meaning · Accuracy · Beauty · Motion · Sync ·
+Look at the sheets as a sequence, and at every `strip_*.jpg` as motion: does each move ease in and out, keep its
+speed through a cut, land on its word – or jump, stall, stop dead? Fix motion here, not after the user's preview. Score every beat 1–5: **Meaning · Accuracy · Beauty · Motion · Sync ·
 Readability**. Below 4 → fix. Then one extra pass on the two weakest beats. Tick every Take-care-of item
 (`✓ how`). Log real issues as `interval → observation → cause → fix → re-checked`.
 Then judge **the whole piece** with the questions for its kind (PLAN.md §5b), each *weak / ok / strong*;

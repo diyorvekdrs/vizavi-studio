@@ -510,6 +510,9 @@ def project_json(pr, full=False):
                 outs.append({"name": f.name + "/", "mb": None, "url": None})
     out["outputs"] = outs
     kind = st.get("last_kind", "request")
+    out["chat_message"] = (f"Make the video for my Vizavi Studio project “{pr.name}”." if not st.get("preview_v") else
+                           f"I wrote my notes on preview v{st.get('preview_v')} of “{pr.name}” in Vizavi Studio – "
+                           "review them and make the next version.")
     out["message"] = core.claude_message(kind if kind in ("request", "review", "error") else "request", pr.name,
                                          st.get("preview_v"))
     tc = pr.src / "transcript_claude.md"
@@ -606,7 +609,7 @@ def meta():
         "safe_area": OD.SAFE_AREA, "kinds": OD.KINDS, "langs": OD.LANGS, "styles": list(OD.STYLES), "brands": OD.list_brands(),
         "presets": list(OD.PRESETS) + [k for k in S.get("user_presets", {}) if k not in OD.PRESETS],
         "preset_cards": preset_cards(S), "style_desc": OD.STYLES,
-        "saved_styles": core.list_styles(S), "trash": TR.list_trash(S), "trash_days": TR.KEEP_DAYS,
+        "saved_styles": core.list_styles(S), "claude_link": claude_link_status(), "trash": TR.list_trash(S), "trash_days": TR.KEEP_DAYS,
         "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),
         "warnings": getattr(ST, "warnings", []),
@@ -614,6 +617,14 @@ def meta():
                                            "uzbek_model", "projects_dir", "downloads_dir", "whisper_model",
                                            "light_effects", "check_updates")},
     }
+
+
+def claude_link_status():
+    try:
+        from . import claude_link
+        return claude_link.status()
+    except Exception as e:
+        return {"connected": False, "current": False, "path": "", "problem": str(e)}
 
 
 def preset_cards(S):
@@ -733,6 +744,14 @@ def act(a):
             raise core.UserMessage(str(e))
         ST.version += 1
         return {}
+    if kind in ("connect_claude", "disconnect_claude"):
+        from . import claude_link
+        try:
+            done = claude_link.connect() if kind == "connect_claude" else claude_link.disconnect()
+        except Exception as e:
+            raise core.UserMessage(f"Couldn't change the Claude app's settings: {e}")
+        ST.log(("Connected to" if kind == "connect_claude" else "Disconnected from") + " the Claude app: " + ", ".join(done))
+        return {"done": done, "status": claude_link.status()}
     if kind == "add_rule":                   # a note worth keeping for every project -> My rules
         rule = " ".join(str(a.get("text") or "").split()).strip(" •-")
         if not rule:

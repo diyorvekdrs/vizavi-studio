@@ -134,6 +134,22 @@ async function until(fn, ms = 6000, step = 80) { const t = Date.now(); while (Da
   check("Recently deleted empty again", !!(await until(() => /Nothing here/.test($("#trList")?.textContent || ""), 3000)));
   click($("#dlg [data-close]"));
 
+  // Claude app connection -> chat mode on the project page
+  click($("#settingsBtn")); await until(() => $("#clBox"));
+  check("settings offers connecting the Claude app", /Not connected/.test($("#clBox").textContent));
+  click($('#clBox [data-cl="connect_claude"]'));
+  check("connected", !!(await until(() => /Connected/.test($("#clBox").textContent), 3000)), $("#clBox").textContent);
+  click($("#dlg [data-close]"));
+  click($$(".proj").find(b => b.dataset.name === "gamma"));
+  check("request card switches to chat mode", !!(await until(() => /Ask Claude in the Claude app/.test($("#view").textContent), 3000)));
+  check("zip way still offered", /Use a zip instead/.test($("#view").textContent));
+  click($('#view [data-a="copy_chat"]'));
+  check("chat message copied", !!(await until(() => [...d.querySelectorAll(".toast")].some(t => /Claude app/.test(t.textContent)), 3000)));
+  click($("#settingsBtn")); await until(() => $("#clBox"));
+  click($('#clBox [data-cl="disconnect_claude"]'));
+  check("disconnect", !!(await until(() => /Not connected/.test($("#clBox").textContent), 3000)));
+  click($("#dlg [data-close]"));
+
   // settings
   click($("#settingsBtn"));
   check("settings dialog", !!(await until(() => $("#fx"))));

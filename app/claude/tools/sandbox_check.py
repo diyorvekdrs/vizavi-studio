@@ -7,7 +7,11 @@ usage (from the package root):
   python tools/sandbox_check.py episode                       # every 4 s + scene boundaries + other aspects
   python tools/sandbox_check.py episode --every 2 --width 640
   python tools/sandbox_check.py episode --times 12.5,31.2 --no-audio --no-variants
-Outputs: check/sheet_XX.jpg, check/variant_<id>.jpg, check/audio_plot.png, check/report.txt"""
+  python tools/sandbox_check.py episode --scene hook          # one scene: stills + a 6 fps motion strip of it
+  python tools/sandbox_check.py episode --strip 12.0-14.5     # only a motion strip of that stretch
+Outputs: check/sheet_XX.jpg, check/strip_<scene>.jpg (consecutive frames at 6 fps: judge motion, timing and
+easing - one row = one second), check/variant_<id>.jpg, check/audio_plot.png, check/report.txt
+On the user's PC (agent mode) add --real: the real GPU instead of the strict fake one."""
 import argparse, json, os, shutil, subprocess, sys, time
 from pathlib import Path
 
@@ -40,6 +44,28 @@ def mirror_runtime(ep):
             shutil.copy(ep / f, inp / f)
 
 
+def motion_notes(tiles, frames, fps, h):
+    """hints from consecutive frames: nothing moves, a jump between two frames, a move that stops dead"""
+    import numpy as np
+    g = [np.asarray(t.crop((0, 0, t.width, h)).convert("L").resize((96, max(8, int(96 * h / t.width)))), np.float32)
+         for t in tiles]
+    d = np.array([float(np.abs(b - a).mean()) for a, b in zip(g, g[1:])])
+    if not len(d):
+        return []
+    med, mx, k = float(np.median(d)), float(d.max()), int(d.argmax())
+    out = [f"motion per step: typical {med:.1f}, largest {mx:.1f} (0-255 scale)"]
+    if mx < 0.4:
+        out.append("WARNING: nothing visibly moves here - intended hold? (a held frame needs a reason)")
+    elif mx > 2 and mx > 3 * max(med, 0.3):
+        t = frames[k + 1] / fps
+        out.append(f"WARNING: uneven motion - a jump at {t:.2f}s ({mx:.1f} vs typical {med:.1f}); a pop, a missing "
+                   f"ease or a cut inside the scene?")
+    stops = [i for i in range(1, len(d)) if d[i - 1] > 1.5 and d[i] < 0.08 * d[i - 1]]
+    if stops:
+        out.append(f"note: motion stops dead at {frames[stops[0] + 1] / fps:.2f}s - ease out or keep a slow drift")
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("episode", nargs="?", default="episode")
@@ -51,6 +77,10 @@ def main():
     ap.add_argument("--no-boundaries", action="store_true")
     ap.add_argument("--no-variants", action="store_true")
     ap.add_argument("--cpu", action="store_true", help="python engine: plain NumPy instead of strict fake GPU")
+    ap.add_argument("--real", action="store_true", help="on the user's PC: use the real GPU (no fake-GPU checks)")
+    ap.add_argument("--strip", default="", help="motion strip of a scene name or a stretch 't0-t1' (seconds)")
+    ap.add_argument("--strip-fps", type=float, default=6.0)
+    ap.add_argument("--no-strips", action="store_true", help="skip the motion strips of the full check")
     a = ap.parse_args()
 
     ep = Path(a.episode).resolve()
@@ -60,7 +90,10 @@ def main():
         f.unlink()
     man = json.loads((ROOT / "vizavi.json").read_text(encoding="utf-8")) if (ROOT / "vizavi.json").exists() else {}
     mirror_runtime(ep)
-    os.environ["RENDER_FAKEGPU" if not a.cpu else "RENDER_CPU"] = "1"
+    if a.cpu:
+        os.environ["RENDER_CPU"] = "1"
+    elif not a.real:
+        os.environ["RENDER_FAKEGPU"] = "1"
     os.chdir(ep)
     sys.path.insert(0, str(ep))
     import vzrender
@@ -105,8 +138,11 @@ def main():
             P(f"ERROR: no scene '{a.scene}' (scenes: {', '.join(str(x[0]) for x in scenes)})"); return 1
         a.times = ",".join(f"{sc[1] + (sc[2] - sc[1]) * k / 7:.3f}" for k in range(8))
         a.no_audio, a.no_variants = True, True
+    if a.strip and not a.scene and not a.times:      # only the strip: no stills, no sound
+        a.no_audio, a.no_variants, a.no_boundaries = True, True, True
+        a.times = "-1"
     if a.times:
-        fr |= {min(nfr - 1, max(0, int(round(float(t) * fps)))) for t in a.times.split(",") if t.strip()}
+        fr |= {min(nfr - 1, max(0, int(round(float(t) * fps)))) for t in a.times.split(",") if t.strip() and float(t) >= 0}
     else:
         k = 0.0
         while k < dur:
@@ -168,13 +204,54 @@ def main():
 
     long_side = a.width or 480
     w, h = size_for(vs[0]["w"], vs[0]["h"], long_side)
-    tiles, times = render_set(w, h, fr, record=True)
-    P(f"rendered {len(fr)} frames at {w}x{h}: avg {np.mean(times):.2f}s, max {max(times):.2f}s (slowest f{fr[int(np.argmax(times))]})")
-    cols = 4 if w >= h else 6
-    per = cols * (4 if w >= h else 2)
-    for s in range(0, len(tiles), per):
-        sheet(tiles[s:s + per], out / f"sheet_{s // per + 1:02d}.jpg", cols)
-    P("contact sheets: " + ", ".join(p.name for p in sorted(out.glob("sheet_*.jpg"))) + " in check/")
+    if fr:
+        tiles, times = render_set(w, h, fr, record=True)
+        P(f"rendered {len(fr)} frames at {w}x{h}: avg {np.mean(times):.2f}s, max {max(times):.2f}s (slowest f{fr[int(np.argmax(times))]})")
+        cols = 4 if w >= h else 6
+        per = cols * (4 if w >= h else 2)
+        for s in range(0, len(tiles), per):
+            sheet(tiles[s:s + per], out / f"sheet_{s // per + 1:02d}.jpg", cols)
+        P("contact sheets: " + ", ".join(p.name for p in sorted(out.glob("sheet_*.jpg"))) + " in check/")
+
+    # motion strips: consecutive frames at ~6 fps, one row per second - stills can't show easing, speed or jerks
+    strips = []
+    step = max(1, int(round(fps / max(1.0, a.strip_fps))))
+    def span(t0, t1, cap):
+        f0, f1 = max(0, int(round(t0 * fps))), min(nfr - 1, int(round(t1 * fps)))
+        frs = list(range(f0, max(f0 + 1, f1), step))     # end excluded: the next scene starts there
+        if len(frs) > cap:
+            mid = len(frs) // 2
+            frs = frs[max(0, mid - cap // 2): max(0, mid - cap // 2) + cap]
+        return frs
+    if a.strip:
+        sc = next((x for x in scenes if str(x[0]) == a.strip), None)
+        if sc:
+            strips.append((str(sc[0]), span(sc[1], sc[2], 36)))
+        else:
+            try:
+                t0, t1 = (float(x) for x in a.strip.split("-", 1))
+                strips.append((f"{t0:.1f}-{t1:.1f}s", span(t0, t1, 60)))
+            except ValueError:
+                P(f"ERROR: --strip wants a scene name or t0-t1 (scenes: {', '.join(str(x[0]) for x in scenes)})")
+    elif a.scene:
+        sc = next((x for x in scenes if str(x[0]) == a.scene), None)
+        mid = (sc[1] + sc[2]) / 2
+        strips.append((str(sc[0]), span(max(sc[1], mid - 1.5), min(sc[2], mid + 1.5), 18)))
+    elif not a.times and not a.no_strips:
+        for sc in scenes:
+            mid = (sc[1] + sc[2]) / 2
+            strips.append((str(sc[0]), span(max(sc[1], mid - 0.5), min(sc[2], mid + 0.5), 7)))
+    if strips:
+        sw, sh_ = size_for(vs[0]["w"], vs[0]["h"], 240 if vs[0]["w"] >= vs[0]["h"] else 200)
+        per_row = max(1, int(round(fps / step)))
+        for name, frs in strips:
+            if len(frs) < 2:
+                continue
+            st_tiles, _ = render_set(sw, sh_, frs)
+            safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
+            sheet(st_tiles, out / f"strip_{safe}.jpg", min(per_row, len(st_tiles)))
+            P(f"motion strip '{name}': {frs[0] / fps:.2f}-{frs[-1] / fps:.2f}s, {len(frs)} frames -> check/strip_{safe}.jpg"
+              + "".join(f"\n  {m}" for m in motion_notes(st_tiles, frs, fps, sh_)))
     if len(vs) > 1 and not a.no_variants:
         pick = sorted({min(nfr - 1, int(nfr * k)) for k in (0.1, 0.4, 0.7, 0.95)})
         for v in vs[1:]:

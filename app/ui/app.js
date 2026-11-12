@@ -296,10 +296,16 @@ function ruleDialog() {
       catch (e) { $("#ruleErr").textContent = e.message; }
     });
 }
+const chatMode = () => !!(S.meta && S.meta.claude_link && S.meta.claude_link.connected);
 function moveCard(p) {
   const zip = p.last_zip ? `<code>${esc(p.last_zip)}</code>` : "the zip";
   switch (p.stage) {
-    case "request_ready": return `<div class="move"><h2>Send it to Claude</h2>
+    case "request_ready": return chatMode() ? `<div class="move"><h2>Ask Claude in the Claude app</h2>
+      <p>Vizavi Studio is connected to the Claude app: paste this in a new chat there. Claude builds the video on this PC, checks it and the preview appears here by itself – no zips.</p>
+      <div class="row"><button class="btn primary" data-a="copy_chat">Copy message for the Claude app</button>
+      <details class="alt"><summary>Use a zip instead (claude.ai in the browser)</summary><p>Drag ${zip} into a new Claude chat and paste the zip message.</p>
+      <div class="row"><button class="btn" data-a="copy">Copy zip message</button><button class="btn" data-a="reveal_zip">Show zip</button><button class="btn" data-a="open_claude">Open Claude</button></div></details></div></div>`
+      : `<div class="move"><h2>Send it to Claude</h2>
       <p>Drag ${zip} into a new Claude chat, paste the message and send. Download the zip Claude replies with – it's picked up here automatically.</p>
       <div class="row"><button class="btn primary" data-a="copy">Copy message</button><button class="btn" data-a="reveal_zip">Show zip</button>
       <button class="btn" data-a="open_claude">Open Claude</button></div></div>`;
@@ -309,7 +315,7 @@ function moveCard(p) {
       <button class="btn" data-a="copy">Copy message</button><button class="btn" data-a="reveal_zip">Show review zip</button>${sizePicker(p)}</div>
       <div class="notes"><div class="chips" role="group" aria-label="Quick notes">${CHIPS.map(([t]) => `<button class="chip" data-chip="${esc(t)}">${esc(t)}</button>`).join("")}</div>
       <textarea id="notes" placeholder="What should change, what should stay – Claude reads this first. Saved as you type. One change per line works best."></textarea>
-      <div class="row" style="margin-top:8px"><button class="btn" data-a="notes" data-idle>Build review package with these notes</button><span class="quiet grow" id="notesState"></span>
+      <div class="row" style="margin-top:8px">${chatMode() ? `<button class="btn" data-a="copy_chat" title="Your notes are saved as you type – Claude reads them with its review tool">Copy message for the Claude app</button>` : ""}<button class="btn" data-a="notes" data-idle>${chatMode() ? "Or build a review zip" : "Build review package with these notes"}</button><span class="quiet grow" id="notesState"></span>
       <button class="link" data-a="add_rule" title="Keep a note for every future project (Settings → My rules)">Save as a rule…</button></div></div></div>`;
     case "error": return `<div class="move bad"><h2>The render failed</h2>
       <p>If a file was missing (e.g. your footage), add it and press <b>Retry render</b>. Otherwise drag ${zip} into the same Claude chat and paste the message – Claude sends back a fixed zip.</p>
@@ -436,6 +442,8 @@ $("#view").addEventListener("click", async e => {
   const b = e.target.closest("[data-a]"); if (!b || b.disabled) return;
   const a = b.dataset.a, p = S.cur;
   if (a === "copy") return copy(p.message);
+  if (a === "copy_chat") { clearTimeout(notesTimer); const ta = $("#notes"); if (ta) await act("save_notes", { text: ta.value });
+    return copy(p.chat_message, "Copied – paste it in the Claude app"); }
   if (a === "approve") { const bad = serious(p); if (bad.length) return approveDialog(p, bad); return approveNow(); }
   if (a === "notes") {
     const t = ($("#notes").value || "").trim(); if (!t) return toast("Write your notes first", "warn", 3500);
@@ -589,6 +597,7 @@ function settingsDialog() {
       <div class="row" style="margin-top:6px"><span class="quiet grow">You have Vizavi Studio ${esc(S.meta.version || "?")}</span>
       <button class="btn small" id="cuNow">Check now</button>${S.meta.can_undo_update ? `<button class="btn small" id="cuUndo">Undo last update</button>` : ""}</div></div></div>
     <div class="fs"><h3>Saved styles<small>Made with “Save as style…” on a project page.</small></h3><div id="stList">${styleList()}</div></div>
+    <div class="fs"><h3>Claude app<small>Chat mode: Claude builds and checks the video on this PC – no zips. Needs the Claude desktop app.</small></h3><div id="clBox">${claudeBox()}</div></div>
     <div class="fs"><h3>Recently deleted<small>Deleted projects and styles stay here for ${S.meta.trash_days || 30} days.</small></h3><div><div id="trList">${trashList()}</div>
       <div class="row" style="margin-top:6px"><span class="quiet grow">A small backup of your styles and project texts is made every day.</span><button class="btn small" id="bkOpen">Open backups</button></div></div></div>
     <div class="fs"><h3>Behaviour</h3><div>
@@ -634,6 +643,13 @@ function settingsDialog() {
       } catch (err) { b.disabled = false; toast(err.message, "error"); }
     };
     $("#bkOpen", d).onclick = () => act("open_backups", {}, null);
+    $("#clBox", d).onclick = async e => {
+      const b = e.target.closest("[data-cl]"); if (!b) return; b.disabled = true;
+      try { await api("/api/act", { action: b.dataset.cl }); S.meta = await api("/api/meta"); $("#clBox").innerHTML = claudeBox();
+        toast(b.dataset.cl === "connect_claude" ? "Connected – quit the Claude app completely and open it again" : "Disconnected from the Claude app", b.dataset.cl === "connect_claude" ? "move" : "info", 8000);
+        if (S.cur) { S.viewSig = ""; renderView(S.cur, true); } }
+      catch (err) { b.disabled = false; toast(err.message, "error"); }
+    };
     $("#rc", d).onclick = async () => { const r = await act("recheck", {}, null); if (r) toast("Checking components – see the log", "info", 3000); };
     $("#sv", d).onclick = async () => {
       $("#sv").disabled = true; $("#seterr").textContent = "";
@@ -646,6 +662,14 @@ function settingsDialog() {
   });
 }
 
+function claudeBox() {
+  const c = (S.meta && S.meta.claude_link) || {};
+  if (c.problem) return `<p class="err">${esc(c.problem)}</p>`;
+  return c.connected
+    ? `<div class="row"><span class="grow">✓ Connected${c.current ? "" : " (to another copy of Vizavi Studio – connect again)"}. In the Claude app, say e.g. “Make the video for my Vizavi Studio project …”.</span>
+       ${c.current ? "" : `<button class="btn small primary" data-cl="connect_claude">Connect again</button>`}<button class="btn small" data-cl="disconnect_claude">Disconnect</button></div>`
+    : `<div class="row"><span class="grow quiet">Not connected. After connecting, restart the Claude app once.</span><button class="btn small primary" data-cl="connect_claude">Connect to the Claude app</button></div>`;
+}
 function trashList() {
   const L = (S.meta && S.meta.trash) || [];
   return L.length ? L.map(t => `<div class="strow"><span class="grow"><b>${esc(t.name)}</b><small class="quiet"> ${t.kind === "style" ? "style" : "project"} · deleted ${esc(t.deleted)} · ${t.days_left} day${t.days_left === 1 ? "" : "s"} left</small></span>

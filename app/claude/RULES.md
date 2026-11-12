@@ -71,8 +71,12 @@ app puts the final, precisely timed `input/words.tsv` + `input/captions.srt` nex
 ```
 python tools/sandbox_check.py episode                   # stills, spec, text on screen, other aspects, camera, sound
 python tools/sandbox_check.py episode --times 12.4,31   # only what you changed
+python tools/sandbox_check.py episode --scene hook      # one scene: stills + a 6 fps motion strip
+python tools/sandbox_check.py episode --strip 12-15     # motion strip of a stretch (easing, speed, jerks)
 python tools/vizavi_pack.py --kind preview|final --note "..."
 ```
-Outputs: `check/sheet_XX.jpg` (labelled: time, frame, scene, spoken word), `check/variant_<id>.jpg`,
+Outputs: `check/sheet_XX.jpg` (labelled: time, frame, scene, spoken word), `check/strip_<scene>.jpg` (consecutive
+frames at 6 fps, one row = one second: **look at these for motion** – easing, speed, things that jump or stop dead;
+stills alone can't show it; the report adds motion hints per strip), `check/variant_<id>.jpg`,
 `check/audio_plot.png`, `check/report.txt`. Fix every ERROR line (P0/P1) before packing. The app runs the same
 ranked checks on every preview (`review/report.md`) and asks the user before approving a final with P0/P1 left.

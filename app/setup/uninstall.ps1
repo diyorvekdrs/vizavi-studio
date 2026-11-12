@@ -44,6 +44,19 @@ foreach ($d in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFold
     Remove-Item -LiteralPath (Join-Path $d 'Vizavi Studio.lnk') -Force -ErrorAction SilentlyContinue
 }
 Remove-Item 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VizaviStudio' -Recurse -Force -ErrorAction SilentlyContinue
+# the Claude app connector entry (Settings -> Claude app); everything else in that file stays as it is
+$cc = Join-Path $env:APPDATA 'Claude\claude_desktop_config.json'
+if (Test-Path $cc) {
+    try {
+        $j = Get-Content -LiteralPath $cc -Raw | ConvertFrom-Json
+        if ($j.mcpServers -and $j.mcpServers.PSObject.Properties['vizavi-studio']) {
+            Copy-Item -LiteralPath $cc ($cc + '.bak') -Force
+            $j.mcpServers.PSObject.Properties.Remove('vizavi-studio')
+            $j | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $cc -Encoding UTF8
+            Write-Host "  Removed Vizavi Studio from the Claude app."
+        }
+    } catch { }
+}
 Set-Location $env:TEMP
 Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
 if (Test-Path $dest) { Write-Host "  Some files are still in use. Restart the PC and delete $dest by hand." -ForegroundColor Yellow }
