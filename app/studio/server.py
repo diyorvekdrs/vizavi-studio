@@ -291,7 +291,8 @@ def check_update(quiet=True):
         info = UP.check(UPDATE_REPO, VERSION)
     except Exception as e:
         if not quiet:
-            raise ST.core.UserMessage(f"Could not check for updates ({type(e).__name__}: {e}). Is the internet on?")
+            raise ST.core.UserMessage(f"GitHub didn't answer (tried 3 times: {type(e).__name__}). Check the internet "
+                                      "connection and try again in a minute.")
         return None
     ST.update = info if info["newer"] else None
     if ST.update and getattr(ST, "_told_update", None) != info["latest"]:
@@ -328,7 +329,15 @@ def housekeeping():
 def update_job():
     if not ST.jobs.empty():
         raise ST.core.UserMessage("Finish the queued jobs first – the update restarts Vizavi Studio.")
-    info = check_update(quiet=False)
+    try:
+        info = check_update(quiet=False)
+    except ST.core.UserMessage:
+        # GitHub didn't answer this time, but the bar was shown from an earlier check: that release is still good
+        # (the download is verified against its checksum anyway)
+        info = ST.update
+        if not info:
+            raise
+        ST.log(f"GitHub is slow to answer – using the release found earlier ({info['latest']}).")
     if not info or not info.get("newer"):
         raise ST.core.UserMessage(f"You already have the newest version ({VERSION}).")
     CTX.progress(0, f"Updating to Vizavi Studio {info['latest']}", until=0.9)

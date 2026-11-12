@@ -72,6 +72,35 @@ api = f"http://127.0.0.1:{gh.server_port}/repos/{{repo}}/releases/latest"
 info = UP.check("me/vizavi", "2.2.0", api=api)
 check("newer release found", info["newer"] and info["latest"] == "2.3.0" and "Faster" in info["notes"], info)
 check("not newer when equal", not UP.check("me/vizavi", "2.3.0", api=api)["newer"])
+# a slow / dropped connection: tried again, a real 404 is not
+import urllib.request as _ur, urllib.error as _ue
+_real, calls = _ur.urlopen, []
+def flaky(req, timeout=None):
+    calls.append(1)
+    if len(calls) < 3:
+        raise TimeoutError("The read operation timed out")
+    return _real(req, timeout=timeout)
+_ur.urlopen = flaky; UP.time.sleep = lambda s: None
+try:
+    check("timeouts are retried", UP.check("me/vizavi", "2.2.0", api=api)["newer"] and len(calls) == 3, len(calls))
+    calls.clear()
+    def always(req, timeout=None):
+        calls.append(1); raise TimeoutError("slow")
+    _ur.urlopen = always
+    try:
+        UP.check("me/vizavi", "2.2.0", api=api); check("gives up after 3 tries", False)
+    except TimeoutError:
+        check("gives up after 3 tries", len(calls) == 3, len(calls))
+    calls.clear()
+    def notfound(req, timeout=None):
+        calls.append(1); raise _ue.HTTPError("u", 404, "Not Found", {}, None)
+    _ur.urlopen = notfound
+    try:
+        UP.check("me/vizavi", "2.2.0", api=api)
+    except _ue.HTTPError:
+        check("a 404 is not retried", len(calls) == 1, len(calls))
+finally:
+    _ur.urlopen = _real
 state["sum"] = "0" * 64
 try:
     UP.stage(info, app, log=lambda s: None); check("tampered download refused", False)

@@ -30,10 +30,26 @@ def newer(a, b):
     return vtuple(a) > vtuple(b)
 
 
-def _get(url, timeout=15):
-    req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+def _retry(fn, tries=3, wait=2.0):
+    """a slow or dropped connection is usually fine a moment later: try again before giving up"""
+    for i in range(tries):
+        try:
+            return fn()
+        except (OSError, TimeoutError) as e:          # URLError, timeouts, resets (HTTP 4xx/5xx are OSError too)
+            code = getattr(e, "code", None)
+            if code is not None and 400 <= code < 500 and code not in (403, 408, 429):
+                raise                                 # a real "not found" doesn't get better by waiting
+            if i == tries - 1:
+                raise
+            time.sleep(wait * (i + 1))
+
+
+def _get(url, timeout=20):
+    def once():
+        req = urllib.request.Request(url, headers=UA)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.read()
+    return _retry(once)
 
 
 def check(repo, current, api=None):
@@ -51,6 +67,10 @@ def check(repo, current, api=None):
 
 
 def _download(url, dest, progress=None):
+    return _retry(lambda: _download_once(url, dest, progress))
+
+
+def _download_once(url, dest, progress=None):
     req = urllib.request.Request(url, headers={"User-Agent": UA["User-Agent"]})
     tmp = Path(str(dest) + ".part")
     with urllib.request.urlopen(req, timeout=30) as r, open(tmp, "wb") as f:
