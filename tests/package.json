@@ -1,0 +1,8 @@
+{
+  "name": "vizavi-studio-tests",
+  "private": true,
+  "description": "UI test for Vizavi Studio (python tests/run_all.py runs everything)",
+  "dependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

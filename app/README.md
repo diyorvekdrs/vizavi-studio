@@ -39,7 +39,10 @@ A failed render becomes `NAME__error_vN.zip`; drag it into the chat the same way
   charts, flat motion graphics) – or let Claude decide
 - **What I want** (your vision: story, mood, must-show moments) and **Take care of** (must-haves, must-nots,
   accuracy) – Take care of is binding and Claude must tick off every item before it may pack
-- **My rules** (Settings): standing rules added to every project, e.g. "text in Uzbek Latin only"
+- **Viewers should believe…** (the one point of the video) and **Kind** (explain, pitch, story, promo, mood) – Claude
+  builds around the point and judges the piece with the questions for its kind (DIRECTION.md §7)
+- **My rules** (Settings): standing rules added to every project, e.g. "text in Uzbek Latin only"; a "Latin"/"lotin"
+  rule is also checked on screen. **Save as a rule…** under the notes box adds one from a note.
 - **Style** presets + notes, purpose/topic, **brand kits** (`brands\NAME\`: brand.json, logo, fonts)
 
 ## Built-in quality and speed
@@ -52,9 +55,18 @@ A failed render becomes `NAME__error_vN.zip`; drag it into the chat the same way
 - Instructions travel in every zip (`CLAUDE_TASK.md`, `RULES.md`, engine docs) – any chat works, no skill
   or storyboard round-trips, Claude never renders the full video in its sandbox.
 - Library of finished projects (`library\`) sent with new requests, best matches first.
-- Automatic checks on every preview: spec mismatches, glitches/unplanned cuts, black/blown frames,
-  flicker, static stretches, camera smoothness, cue-vs-word sync, scene-vs-beat sync, voice-vs-music/SFX
-  balance, loudness, durations, and stills of every other aspect version.
+- Automatic checks on every preview, **ranked** P0 broken · P1 serious · P2 worth fixing · P3 polish: text on screen
+  (cut off, off the frame, in the Shorts/TikTok/Reels button zones, too small, too faint for its background, too
+  brief to read, Cyrillic against a Latin rule, likely misspelled against the script) – measured by the renderer
+  every 0.25 s (html: `VZ.textLayout()`, python: the template's `text()`/`captions()`) – plus spec mismatches,
+  glitches/unplanned cuts, black/blown frames, flicker, static stretches, camera smoothness, cue-vs-word sync,
+  scene-vs-beat sync, voice-vs-music/SFX balance, loudness, durations, and stills of every other aspect version.
+  Approving a final with P0/P1 left asks first. Claude runs the same checks in its sandbox (`sandbox_check.py`).
+- Notes: quick buttons (Bolder, Quieter, Faster, Shorter, Bigger text, Fix sound, Polish) add one change per line;
+  Claude restates every note as separate asks with what must stay unchanged before it edits.
+- **Unchanged seconds are reused**: the renderer keeps the last render's 1-second batches per size
+  (`work\_render_cache`); a batch whose four sample frames come out pixel-identical is copied instead of rendered.
+  `"reuse_unchanged": false` in settings.json (or env `VZ_NO_REUSE=1`) turns it off.
 - Heavy assets are sent to Claude as light copies; renders use your originals.
 
 ## Uzbek transcription (maximum accuracy)
@@ -92,6 +104,8 @@ After a hardware or driver change, press **Check and repair components** in Sett
 `Projects\NAME\` → `source` (order, narration, music, assets, timings, beats, captions), `to_claude`,
 `from_claude`, `work`, `output`, `logs`. `kit\` = render kit (your original files unchanged + `vzrender.py`),
 `claude\` = what goes into the zips, `library\` = reusable projects, `brands\` = brand kits.
+`Projects\_deleted\` = Recently deleted (restore in Settings, removed after 30 days), `Projects\_backups\` = one small
+zip a day (styles, project settings, transcripts, Claude's latest code), the last 7 kept.
 
 ## Troubleshooting
 - Something didn't install: Settings → **Check and repair components**, then read the log (bottom right).

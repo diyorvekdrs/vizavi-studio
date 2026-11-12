@@ -1,7 +1,8 @@
 """Quick sandbox check for a project (Claude side), python or html engine. Renders a few stills
 (python engine on the strict fake GPU, html engine in headless Chromium), makes labelled contact
-sheets, checks the spec against vizavi.json, camera smoothness and the sound. Never renders the
-full video.
+sheets, checks the spec against vizavi.json, the text on screen (cut off, in the app's button zones, too
+small, too faint, too brief, wrong alphabet, likely misspelled - the same ranked checks the app runs on the
+preview), camera smoothness and the sound. Never renders the full video.
 usage (from the package root):
   python tools/sandbox_check.py episode                       # every 4 s + scene boundaries + other aspects
   python tools/sandbox_check.py episode --every 2 --width 640
@@ -13,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import vz_analysis as va  # noqa: E402
+import vz_checks as vc  # noqa: E402
 
 
 def even(x):
@@ -129,14 +131,22 @@ def main():
             sh.paste(im, ((j % cols) * (tw + 4), (j // cols) * (th + 4)))
         sh.save(path, quality=82)
 
-    def render_set(w, h, frames, label_words=True):
+    probe = []
+
+    def render_set(w, h, frames, label_words=True, record=False):
         src = vzrender.make_source(eng, w, h, meta["alpha"])
         font = va.load_font(max(11, min(w, h) // 30), "DejaVuSansMono.ttf")
         tiles, times = [], []
         for i in frames:
             t1 = time.time()
+            if record:
+                src.begin_probe()
             img = src.frame(i, i / fps)
             times.append(time.time() - t1)
+            if record:
+                items = src.end_probe()
+                if items is not None:
+                    probe.append({"t": i / fps, "items": vzrender.measure([dict(x) for x in items], vzrender.flatten(img, w, h))})
             if not (isinstance(img, np.ndarray) and img.dtype == np.uint8 and img.shape[:2] == (h, w) and img.shape[2] in (3, 4)):
                 raise SystemExit(f"ERROR: frame {i} returned {type(img).__name__} {getattr(img, 'dtype', '')} "
                                  f"{getattr(img, 'shape', '')}, need numpy uint8 ({h},{w},3|4)")
@@ -158,7 +168,7 @@ def main():
 
     long_side = a.width or 480
     w, h = size_for(vs[0]["w"], vs[0]["h"], long_side)
-    tiles, times = render_set(w, h, fr)
+    tiles, times = render_set(w, h, fr, record=True)
     P(f"rendered {len(fr)} frames at {w}x{h}: avg {np.mean(times):.2f}s, max {max(times):.2f}s (slowest f{fr[int(np.argmax(times))]})")
     cols = 4 if w >= h else 6
     per = cols * (4 if w >= h else 2)
@@ -172,6 +182,35 @@ def main():
             vt, _ = render_set(vw, vh, pick)
             sheet(vt, out / f"variant_{v['id']}.jpg", len(vt))
         P("other aspects: " + ", ".join(f"variant_{v['id']}.jpg" for v in vs[1:]))
+
+    # text: html pages are probed every 0.25 s without screenshots (cheap); python only at the stills above
+    tc = man.get("text_checks") or {}
+    dense = []
+    if eng == "html" and not a.times and not a.scene:
+        src = vzrender.make_source(eng, w, h, meta["alpha"])
+        k = 0
+        while k < nfr:
+            src.pg.evaluate("t => VZ.seek(t)", k / fps)
+            dense.append({"t": k / fps, "items": src.end_probe() or []})
+            k += max(1, int(round(fps / 4)))
+        src.close()
+        measured = {round(p_["t"], 4): p_["items"] for p_ in probe}
+        for d_ in dense:                      # contrast from the stills where they coincide
+            m = measured.get(round(d_["t"], 4))
+            if m is not None:
+                d_["items"] = m
+    if dense or probe:
+        vocab = "\n".join((ROOT / "input" / f).read_text(encoding="utf-8") for f in ("script.txt", "transcript.txt")
+                           if (ROOT / "input" / f).exists()) + " " + " ".join(x[2] for x in words)
+        iss, summ = vc.analyze_text(dense or probe, w, h, step=0.25 if dense else a.every, safe=tc.get("safe"),
+                                    vocab_text=vocab, latin_only=bool(tc.get("latin_only")), min_run=2 if dense else 1)
+        summ = None if not (dense or probe) else summ
+        for line in vc.report_md(iss, summ):
+            P("text: " + line)
+        for i in vc.ranked([], iss):
+            P(f"{'ERROR' if i['rank'] in ('P0', 'P1') else 'WARNING'} ({i['rank']}): {i['text']}")
+    elif eng == "python":
+        P("text: not checked - draw all on-screen text with text()/captions() from the template (they report it)")
 
     if eng == "python":
         cs = getattr(__import__("film"), "camera_state", None)

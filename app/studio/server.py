@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .core_paths import is_inside
 from . import update as UP
+from . import trash as TR
 from .version import VERSION, UPDATE_REPO
 
 APP = Path(__file__).resolve().parent.parent
@@ -253,6 +254,7 @@ def setup():
         ST.log(f"Ready. (Vizavi Studio {VERSION})")
         update_result()
         threading.Thread(target=update_checker, daemon=True).start()
+        threading.Thread(target=housekeeping, daemon=True).start()
         clean_incoming()
         threading.Thread(target=watcher, daemon=True).start()
     except Exception:
@@ -306,6 +308,21 @@ def update_checker():
         if ST.S and ST.S.get("check_updates", True):
             check_update()
         time.sleep(6 * 3600)
+
+
+def housekeeping():
+    """Recently deleted older than 30 days goes for good; once a day a small backup of styles and project texts"""
+    from . import trash as TR
+    time.sleep(20)
+    while True:
+        try:
+            S, core = ST.S, ST.core
+            TR.migrate_old(S)
+            TR.purge_old(S, ST.log)
+            TR.daily_backup(S, latest_code=lambda d: (core.latest_code_dir(core.Project(d)) or [None])[0], log=ST.log)
+        except Exception as e:
+            ST.log(f"Housekeeping skipped: {e}")
+        time.sleep(3 * 3600)
 
 
 def update_job():
@@ -461,6 +478,11 @@ def project_json(pr, full=False):
     rep = report_info(pr)
     cost = rep.get("scene_cost") or {}
     out["flags"] = [str(f) for f in (rep.get("flags") or [])][:60]
+    iss = rep.get("issues")
+    if not isinstance(iss, list):            # a report made by an older version: rank its plain flags now
+        iss = core.vc.ranked(out["flags"])
+    out["issues"] = [{"rank": str(i.get("rank") or "P2"), "text": str(i.get("text") or "")} for i in iss
+                     if isinstance(i, dict)][:80]
     out["est_final_min"] = rep.get("est_final_min")
     out["scene_cost"] = [[k, round(v, 1)] for k, v in sorted(cost.items(), key=lambda kv: -kv[1])][:10] \
         if isinstance(cost, dict) else []
@@ -571,9 +593,9 @@ def meta():
         "sizes": {k: list(v) for k, v in OD.SIZES.items()}, "extra_variants": list(OD.EXTRA_VARIANTS),
         "fps": OD.FPS, "duration": OD.DURATION, "audio_export": OD.AUDIO_EXPORT, "captions": OD.CAPTIONS,
         "formats": OD.FORMATS, "engines": OD.ENGINES, "review": OD.REVIEW, "loudness": OD.LOUDNESS,
-        "safe_area": OD.SAFE_AREA, "langs": OD.LANGS, "styles": list(OD.STYLES), "brands": OD.list_brands(),
+        "safe_area": OD.SAFE_AREA, "kinds": OD.KINDS, "langs": OD.LANGS, "styles": list(OD.STYLES), "brands": OD.list_brands(),
         "presets": list(OD.PRESETS) + [k for k in S.get("user_presets", {}) if k not in OD.PRESETS],
-        "saved_styles": core.list_styles(S),
+        "saved_styles": core.list_styles(S), "trash": TR.list_trash(S), "trash_days": TR.KEEP_DAYS,
         "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),
         "warnings": getattr(ST, "warnings", []),
@@ -666,6 +688,39 @@ def act(a):
             raise core.UserMessage("There is no update to undo.")
         restart_with(lambda: UP.restore_launch(APP, sys.executable, ST.token, PORT))
         return {"restarting": True}
+    if kind in ("restore_deleted", "purge_deleted"):
+        tid = a.get("id")
+        try:
+            if kind == "restore_deleted":
+                what, name = TR.restore(S, tid)
+                ST.log(f"Restored {what} “{name}” from Recently deleted")
+                ST.version += 1
+                return {"kind": what, "name": name}
+            TR.purge(S, tid)
+        except TR.TrashError as e:
+            raise core.UserMessage(str(e))
+        ST.version += 1
+        return {}
+    if kind == "add_rule":                   # a note worth keeping for every project -> My rules
+        rule = " ".join(str(a.get("text") or "").split()).strip(" •-")
+        if not rule:
+            raise core.UserMessage("Write the rule first.")
+        if len(rule) > 500:
+            raise core.UserMessage("Keep a rule under 500 characters.")
+        cur = (S.get("standing_rules") or "").rstrip()
+        if rule.lower() in [l.strip(" •-").lower() for l in cur.splitlines()]:
+            return {"added": False}
+        S["standing_rules"] = (cur + "\n" if cur else "") + rule
+        core.save_settings(S)
+        ST.version += 1
+        return {"added": True}
+    if kind == "open_backups":
+        d = TR.backups_dir(S)
+        if not any(d.glob("*.zip")) if d.exists() else True:
+            TR.daily_backup(S, latest_code=lambda x: (core.latest_code_dir(core.Project(x)) or [None])[0], log=ST.log)
+        d.mkdir(parents=True, exist_ok=True)
+        open_path(d)
+        return {}
     if kind == "delete_style":
         core.delete_style(S, a.get("id"))
         ST.version += 1
@@ -1127,7 +1182,7 @@ class H(BaseHTTPRequestHandler):
                     return self.send_json({"error": f"“{nm}” is a built-in preset – choose another name."}, 400)
                 keep = {k: o[k] for k in ("size", "variants", "fps", "duration", "language", "captions", "text_amount",
                                           "style_preset", "style", "formats", "alpha", "engine", "review", "safe_area",
-                                          "brand", "care", "purpose", "style_ref", "style_ref_name") if k in o}
+                                          "brand", "care", "purpose", "kind", "style_ref", "style_ref_name") if k in o}
                 au = o.get("audio") if isinstance(o.get("audio"), dict) else {}
                 keep["audio"] = {k: au[k] for k in ("export", "generate_music", "loudness", "duck_db") if k in au}
                 S.setdefault("user_presets", {})[nm] = keep

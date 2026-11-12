@@ -34,6 +34,9 @@ the video as code, and your PC renders it – a preview first, then the final in
 - 🖥️ **Renders on your own PC** – uses an NVIDIA graphics card when you have one, the processor when you don't
 - 🎞️ **Your footage stays full quality** – Claude works with small copies, the render uses your originals
 - 🎨 **Save a look you like as a style** and get your next videos in the same style
+- 🔎 **Automatic checks on every preview** – text cut off or under the TikTok/Reels buttons, too small, too faint,
+  too brief to read, misspelled; sound and picture problems – ranked from *broken* to *polish*
+- ♻️ **Only what changed is rendered again** – after your notes, unchanged seconds are reused
 - 🔄 **Updates itself** – one click when a new version is out
 
 ## How it works
@@ -161,6 +164,14 @@ Your projects, settings and installed components are never touched. If something
 - ⚡ **Final size** – a 2K or 4K final takes longer. Pick a smaller *Final size* on the preview card when you
   need it fast.
 - 🧾 **My rules** (Settings) – rules added to every project, e.g. *"on-screen text in Uzbek Latin only"*.
+  A note you'll want every time? **Save as a rule…** under the notes box.
+- 🎯 **Viewers should believe…** (New project) – one plain sentence the video must get across. Claude builds every
+  scene around it and judges the preview by it.
+- 🏷️ **Automatic checks** – *Broken* and *Serious* findings are fixed by Claude first; the app asks before you
+  approve a final that still has them. The quick buttons above the notes (*Bolder, Faster, Shorter…*) add one clear
+  change per line.
+- 🗑️ **Recently deleted** (Settings) – deleted projects and styles can be restored for 30 days. A small backup of your
+  styles and project texts is made every day (**Settings → Open backups**).
 - 📁 Your videos are saved in **Videos → Vizavi Studio** (change it in Settings).
 
 ## Something went wrong?
@@ -202,6 +213,13 @@ shown there. You can always drag the zip onto the app window yourself.
 </details>
 
 <details>
+<summary><b>I deleted a project or a style by mistake</b></summary>
+
+**Settings → Recently deleted → Restore.** Everything stays there for 30 days. Older than that: **Settings → Open
+backups** has a daily zip with your styles, project settings, transcripts and Claude's code (not the recordings).
+</details>
+
+<details>
 <summary><b>An update didn't work</b></summary>
 
 The app goes back to the previous version by itself if a new one doesn't start. You can also use
@@ -229,6 +247,9 @@ The script raises the version, commits, tags, pushes and publishes a GitHub rele
 installed app offers the update within a few hours (or right away with **Settings → Check now**).
 Needs [git](https://git-scm.com) and the [GitHub CLI](https://cli.github.com) (`gh auth login`).
 A dry run that only lists what would be published: `py -3 app\setup\publish_update.py --dry`.
+
+Tests: `py -3 tests\run_all.py` (add `npm install` in `tests\` once for the UI test). They run on GitHub for every
+push (Actions → Tests) on Windows; publish only when they're green.
 
 Only what `.gitignore` allows is ever published – settings, projects, models, the Python environment and your
 own project library stay on your PC. More detail about features and folders: [`app/README.md`](app/README.md).

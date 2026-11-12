@@ -10,6 +10,10 @@
 !/Vizavi-Studio-Installer.cmd
 !/docs/
 !/.gitattributes
+!/.github/
+!/tests/
+/tests/node_modules/
+/tests/package-lock.json
 !/app/
 /app/*
 !/app/studio/

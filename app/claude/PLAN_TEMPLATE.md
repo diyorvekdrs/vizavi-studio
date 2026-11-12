@@ -1,6 +1,10 @@
 # PLAN – {{project}}
 (copy to episode/PLAN.md and fill in; keep it terse – one line per idea; DIRECTION.md explains each part)
 
+## 0. Point and kind
+The point (one sentence the viewer should believe): …
+Kind: explain / pitch / story / promo / mood
+
 ## 1. Understand
 | # | start–end | original | meaning (EN) | viewer must see / understand / feel |
 |---|---|---|---|---|
@@ -27,6 +31,18 @@ Palette: … · Light: … · Type: … · Motion: … · Sound: …
 |---|---|---|---|---|---|---|---|
 | 1 | | | | | | | |
 Two weakest beats → extra pass: …
+
+### 5b. Whole piece (DIRECTION §7 – only the questions for this kind; weak / ok / strong + one line why)
+| question | answer | why / fix |
+|---|---|---|
+| open | | |
+| point | | |
+| land | | |
+| pace | | |
+| read | | |
+| sound | | |
+| world | | |
+| own | | |
 Issues: `interval → observation → cause → fix → re-checked`
 
 ## 6. Take care of / standing rules

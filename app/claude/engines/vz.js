@@ -49,6 +49,60 @@
     /* progress of t inside [a,b] -> 0..1 (eased) */
     prog(t, a, b, ease) { const x = VZ.clamp((t - a) / Math.max(1e-9, b - a)); return ease ? ease(x) : x; },
     rand(seed) { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); },
+    /* What text is visible right now, for the automatic checks (the renderer calls this a few times a second):
+       one entry per text block with its box in output pixels, font size, colour, opacity, whether it is a caption
+       and whether its container cuts it off. Mark captions with data-vz-caption (or id/class "captions"),
+       decorative text that is not meant to be read with data-vz-ignore. */
+    textLayout() {
+      const st = document.getElementById('stage') || document.body, out = new Map();
+      const tw = document.createTreeWalker(st, NodeFilter.SHOW_TEXT);
+      const cache = new Map(), cs = e => { let c = cache.get(e); if (!c) { c = getComputedStyle(e); cache.set(e, c); } return c; };
+      const shown = e => { let o = 1; for (; e && e.nodeType === 1; e = e.parentElement) {
+        const c = cs(e); if (c.display === 'none' || c.visibility === 'hidden') return 0; o *= +c.opacity; } return o; };
+      const blockOf = e => { for (let b = e; b && b !== st; b = b.parentElement) {
+        const d = cs(b).display; if (!d.startsWith('inline') && d !== 'contents') return b; } return st; };
+      const path = e => { const p = []; for (; e && e !== document.body; e = e.parentElement) {
+        p.push(e.id ? '#' + e.id : e.tagName + ':' + [...(e.parentElement ? e.parentElement.children : [])].indexOf(e)); if (e.id) break; } return p.reverse().join('/'); };
+      const rgba = s => { const m = String(s).match(/[\d.]+/g); return m ? m.map(Number) : null; };
+      let n;
+      while ((n = tw.nextNode())) {
+        const txt = n.nodeValue; if (!txt || !txt.trim()) continue;
+        const el = n.parentElement;
+        if (!el || el.closest('[data-vz-ignore],script,style,noscript,defs,title')) continue;
+        const op = shown(el); if (op < 0.15) continue;
+        const r = document.createRange(); r.selectNodeContents(n);
+        const rs = [...r.getClientRects()].filter(q => q.width > 0.5 && q.height > 0.5); if (!rs.length) continue;
+        let x0 = Math.min(...rs.map(q => q.left)), y0 = Math.min(...rs.map(q => q.top));
+        let x1 = Math.max(...rs.map(q => q.right)), y1 = Math.max(...rs.map(q => q.bottom));
+        let hidden = false, clip = false;
+        for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+          const c = cs(a); if (c.overflowX === 'visible' && c.overflowY === 'visible') continue;
+          const ar = a.getBoundingClientRect();
+          if (x1 <= ar.left || x0 >= ar.right || y1 <= ar.top || y0 >= ar.bottom) { hidden = true; break; }
+          if (a !== st && a !== document.body && (x0 < ar.left - 2 || y0 < ar.top - 2 || x1 > ar.right + 2 || y1 > ar.bottom + 2)) clip = true;
+        }
+        if (hidden || x1 <= 0 || y1 <= 0 || x0 >= VW || y0 >= VH) continue;
+        const c = cs(el);
+        const br = el.getBoundingClientRect(), oh = el.offsetHeight;
+        const scale = oh ? br.height / oh : 1;
+        const px = parseFloat(c.fontSize) * (isFinite(scale) && scale > 0 ? scale : 1);
+        let col = rgba(c.webkitTextFillColor && c.webkitTextFillColor !== c.color ? c.webkitTextFillColor : c.color);
+        if (col && col.length > 3 && col[3] < 0.5) col = null;          // gradient / image-filled text
+        const b = blockOf(el), k = path(b);
+        const cap = !!el.closest('[data-vz-caption],#captions,.captions,.caption');
+        const e = out.get(k);
+        const last = rs[rs.length - 1], first = rs[0];
+        if (!e) out.set(k, { k, text: txt.trim(), box: [x0, y0, x1, y1], px, color: col ? col.slice(0, 3) : null, op, cap, clip, _r: last.right, _t: last.top, _s: /\s$/.test(txt) });
+        else {
+          // spans of one word (letter by letter animation) join without a space; a gap or a new line is a space
+          const gap = e._s || /^\s/.test(txt) || first.left - e._r > 0.18 * px || Math.abs(first.top - e._t) > 0.5 * px;
+          e.text = (e.text + (gap ? ' ' : '') + txt.trim()).replace(/\s+/g, ' '); e._r = last.right; e._t = last.top; e._s = /\s$/.test(txt);
+          e.box = [Math.min(e.box[0], x0), Math.min(e.box[1], y0), Math.max(e.box[2], x1), Math.max(e.box[3], y1)];
+          e.px = Math.max(e.px, px); e.op = Math.max(e.op, op); e.cap = e.cap || cap; e.clip = e.clip || clip;
+        }
+      }
+      return [...out.values()].map(({ _r, _t, _s, ...e }) => ({ ...e, box: e.box.map(v => Math.round(v * 10) / 10), px: Math.round(e.px * 10) / 10 }));
+    },
   };
 
   function layout() {

@@ -39,6 +39,10 @@ SAFE_AREA = {"none": "None", "shorts": "YouTube Shorts UI", "tiktok": "TikTok UI
 # (top, bottom, right) as a fraction of the frame kept free of text/key action. ONE table used for the brief
 # Claude reads AND for the blue box in the preview, so the two can never disagree.
 SAFE_BOXES = {"tiktok": (0.10, 0.22, 0.12), "shorts": (0.10, 0.20, 0.12), "reels": (0.10, 0.22, 0.10)}
+# what kind of video it is decides which questions judge it (DIRECTION.md "Self-critique")
+KINDS = {"auto": "Let Claude decide from the brief", "explain": "Explain – teach how or why something works",
+         "pitch": "Pitch – make the viewer want it or act", "story": "Story – take the viewer through what happened",
+         "promo": "Promo / ad – short, punchy, one message", "mood": "Mood – music video, ambience, logo sting"}
 LANGS = ["uz", "auto", "en", "ru", "tr", "kk", "ky", "tg", "de", "fr", "es", "ar", "zh", "ja", "ko"]
 STYLES = {
     "cinematic_dark": "Dark, realistic (not toy-like), cinematic. Slow smooth camera, depth, soft light, subtle film grain.",
@@ -63,7 +67,7 @@ def base():
         "language": "uz", "captions": "none", "text_amount": "very little, only where it truly helps",
         "style_preset": "cinematic_dark", "style": "", "formats": ["mp4_h264"], "alpha": False,
         "engine": "auto", "review": "preview", "safe_area": "none", "brand": "", "purpose": "", "brief": "", "wants": "", "care": "",
-        "standing_rules": "",
+        "standing_rules": "", "believe": "", "kind": "auto",
         "assets": [],
     }
 
@@ -247,6 +251,12 @@ def brief_md(o, words=None, music=None, assets=None):
         L += [""]
     if (o.get("wants") or "").strip():
         L += ["## What I want (the user's vision – realize it)", o["wants"].strip(), ""]
+    if (o.get("believe") or "").strip():
+        L += ["## The point (after one watch the viewer should believe this – everything serves it)",
+              o["believe"].strip(), ""]
+    if o.get("kind", "auto") in KINDS and o.get("kind", "auto") != "auto":
+        L += [f"## Kind: {KINDS[o['kind']]}", f"Judge your plan and your preview with the “{o['kind']}” questions in "
+              "DIRECTION.md (Self-critique).", ""]
     L += ["## Spec (exact, from the user's order)",
          f"- Preset: {o['preset']}",
          f"- Main size: {vs[0]['w']}×{vs[0]['h']} ({vs[0]['id']}), {o['fps']} fps"]
@@ -276,8 +286,9 @@ def brief_md(o, words=None, music=None, assets=None):
           f"- Output formats (the app encodes them): {', '.join(FORMATS[f] for f in o['formats'])}"]
     if o.get("safe_area", "none") != "none":
         t_, b_, r_ = SAFE_BOXES.get(o["safe_area"], (0.10, 0.22, 0.12))
+        left = ", left 5%" if vs[0]["h"] > vs[0]["w"] else ""
         L.append(f"- Keep text/key action out of the {SAFE_AREA[o['safe_area']]} zones "
-                 f"(top {t_ * 100:.0f}%, bottom {b_ * 100:.0f}%, right {r_ * 100:.0f}%)")
+                 f"(top {t_ * 100:.0f}%, bottom {b_ * 100:.0f}%, right {r_ * 100:.0f}%{left}) – the preview's checks measure it")
     L += ["", "## Style", STYLES.get(o["style_preset"], ""), o.get("style", "").strip()]
     if o.get("style_ref"):
         L += [f"**Match the user's saved style “{o.get('style_ref_name') or o['style_ref']}”** – read "

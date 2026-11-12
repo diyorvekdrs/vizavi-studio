@@ -24,6 +24,9 @@ Doppler-bright approaching side of the disk, no sound and no twinkling in space)
 only for abstract ideas – then a clear one. Unknown real facts are not invented.
 
 ## 2. One thread (PLAN.md §2)
+**The point** first: the one sentence the viewer should believe after one watch (`brief.md` → "The point"; if
+it's missing, write it yourself from What I want). Every beat serves it; a beat that doesn't is cut.
+**Kind** (`brief.md` → "Kind", else decide): explain · pitch · story · promo · mood – it picks the questions in §7.
 3 candidate concepts (one line each: *what acts, what changes, what the result proves*) → choose one.
 Not the previous video's sequence under a new name; no reflex circle / letter O / portal motif.
 Visual language, one line each: palette (3–5), light motivation, type pair, motion character, sound palette.
@@ -87,11 +90,27 @@ intelligibility and reading beat any beat-grid; silence is a tool.
 Look at the sheets as a sequence. Score every beat 1–5: **Meaning · Accuracy · Beauty · Motion · Sync ·
 Readability**. Below 4 → fix. Then one extra pass on the two weakest beats. Tick every Take-care-of item
 (`✓ how`). Log real issues as `interval → observation → cause → fix → re-checked`.
+Then judge **the whole piece** with the questions for its kind (PLAN.md §5b), each *weak / ok / strong*;
+any *weak* is fixed before packing:
+- **open** (explain, pitch, story, promo): do the first 2 s hold something that makes this audience stay, and
+  does it raise a question the rest answers?
+- **point** (all): after one watch, could the viewer say the point in one plain sentence?
+- **shown** (explain, pitch, promo): when the voice claims something, is it on screen at that moment, working –
+  not only described?
+- **loop** (explain): does it follow one example through, each step leading to the next, instead of jumping
+  between unrelated examples?
+- **pull** (story): does each scene end on something unresolved?
+- **land** (explain, pitch, story, promo): does the end land – a next step, a payoff or a return to the opening?
+- **pace** (all): do shot lengths follow what they hold, nothing still longer than it earns, cuts on words/beats?
+- **read** (all): is every word that matters big, sharp against what's behind it and on long enough?
+- **sound** (all): is the voice clear over everything, effects marking moments rather than filling space?
+- **world** (all): do colour, type, motion and sound keep one direction from first frame to last?
+- **own** (all): with the name hidden, could this only be this project and not any video in its category?
 Honest statuses in CHANGES.md: *built* · *seen in stills* · *not yet seen in motion* (the app's preview
 shows motion; never claim what you couldn't see).
 
 ## 8. Definition of done (then stop and pack)
-No ERROR from sandbox_check · every beat ≥ 4 · two weakest beats got the extra pass · every Take-care-of ✓ ·
+No ERROR (P0/P1) from sandbox_check · no *weak* whole-piece answer · every beat ≥ 4 · two weakest beats got the extra pass · every Take-care-of ✓ ·
 transcript done (asr projects) · PLAN.md and CHANGES.md complete. Remaining ideas are taste – note them in one
 line in CHANGES.md, don't keep polishing.
 
@@ -104,7 +123,25 @@ UI demo: natural cursor paths, highlight what matters, zoom to detail. · Data v
 animate the change, direct labels, honest axes.
 
 ## 10. Review of a preview (stage 2)
-USER_NOTES first (transcript corrections → fix `transcript_clean.txt`, re-run `retime.py`). Then the sheets as
+USER_NOTES first (transcript corrections → fix `transcript_clean.txt`, re-run `retime.py`). One note can hold
+several asks: restate them first (TASK_review.md, CHANGES.md "Notes → asks"). **A change keeps; a redesign
+replaces:** an ask touches what it names and leaves everything else exactly as it was – only "this isn't
+working / start over" allows a redesign. Then `report.md`: every P0 and P1 is fixed (or, if it is on purpose,
+say why in CHANGES.md); P2 if the pass has room; P3 last. Then the sheets as
 one sequence (story, clarity, beauty, motion, accuracy, sync, readability) → PLAN.md, What I want, Take care
 of → `report.md`. Fix causes, not symptoms; improve the two weakest beats even if nothing flags them; update
 scores (old → new) and CHANGES.md; stop at §8.
+
+## 11. Refuse (each of these has been corrected before; allowed only when the brief asks for it by name)
+- **Template captions**: white bold text with one yellow word, an emoji pop, a zoom on every sentence, a whoosh on
+  every entrance.
+- **The same move everywhere**: one entrance, zoom or sound on every beat makes every beat weaker.
+- **Effects stacked until the subject blurs**: bloom + grain + glow + blur + lens tricks. One effect, where it means
+  something; glow only where the eye should go.
+- **Cutting to a fixed tempo** (every N seconds or a BPM grid) instead of words, beats and sections.
+- **Cameras that ease A → B and stop dead**: keep moving through the cut unless following a subject that stops.
+- **Wide, empty frames** with the subject small in the middle; **close-ups with no reason**.
+- **A tour of features / a list of facts** instead of one example followed through.
+- **Copy that sounds like an ad**: buzzwords, "Not X. Y." cadences, slogans, a label above every headline.
+- **Never**: invented facts, numbers, quotes or results; redrawn logos (use the real files); calling it done
+  without looking at the stills.

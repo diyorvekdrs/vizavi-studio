@@ -33,7 +33,14 @@ def video_frames(path):
                            creationflags=NOWIN, timeout=300)
         import re
         n = re.findall(r"frame=\s*(\d+)", r.stderr)
-        return int(n[-1]) if n else None
+        if n:
+            return int(n[-1])
+        # some ffmpeg builds print no frame counter for a stream copy: count the packets instead
+        r = subprocess.run([ff(), "-hide_banner", "-nostdin", "-v", "error", "-i", str(path), "-map", "0:v:0",
+                            "-c", "copy", "-f", "framecrc", "-"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", creationflags=NOWIN, timeout=300)
+        k = sum(1 for ln in r.stdout.splitlines() if ln and not ln.startswith("#"))
+        return k or None
     except Exception:
         return None
 

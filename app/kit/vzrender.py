@@ -56,6 +56,16 @@ class PyFrames:
     def frame(self, i, t):
         return self.film.render_frame(i)
 
+    def begin_probe(self):
+        if hasattr(self.film, "TEXT_LOG"):          # film.py's text()/captions() note what they draw
+            self.film.TEXT_LOG = []
+
+    def end_probe(self):
+        items = getattr(self.film, "TEXT_LOG", None)
+        if items is not None:
+            self.film.TEXT_LOG = None
+        return items
+
     def close(self):
         pass
 
@@ -96,6 +106,15 @@ class HtmlFrames:
         from PIL import Image
         return np.asarray(Image.open(io.BytesIO(png)).convert("RGBA" if self.alpha else "RGB"))
 
+    def begin_probe(self):
+        pass
+
+    def end_probe(self):
+        try:
+            return self.pg.evaluate("() => (window.VZ && VZ.textLayout) ? VZ.textLayout() : null")
+        except Exception:
+            return None
+
     def close(self):
         try:
             self.b.close(); self.p.stop()
@@ -123,9 +142,48 @@ def flatten(img, w, h):
     return (img[..., :3] * a + _CHECK[key] * (1 - a)).astype(np.uint8)
 
 
+# ------------------------------------------------------------------ text probe (for the automatic checks)
+
+def _lum(rgb):
+    c = np.asarray(rgb, dtype=np.float32) / 255.0
+    c = np.where(c <= 0.03928, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * c[..., 0] + 0.7152 * c[..., 1] + 0.0722 * c[..., 2]
+
+
+def measure(items, img):
+    """adds 'contrast' to each item: the text colour against the median of the pixels in its box that are not
+    text-coloured (the background, shadows and outlines included - an outline helps reading, so it should count)"""
+    H, W = img.shape[:2]
+    rgb = img[..., :3]
+    for it in items:
+        it.pop("contrast", None)
+        col = it.get("color")
+        b = it.get("box")
+        if not col or not b:
+            continue
+        x0, y0 = max(0, int(b[0])), max(0, int(b[1]))
+        x1, y1 = min(W, int(b[2] + 0.999)), min(H, int(b[3] + 0.999))
+        if x1 - x0 < 2 or y1 - y0 < 2:
+            continue
+        reg = rgb[y0:y1, x0:x1].reshape(-1, 3)
+        if len(reg) > 40000:
+            reg = reg[:: len(reg) // 40000 + 1]
+        lf = float(_lum(np.asarray(col[:3], dtype=np.float32)))
+        lr = _lum(reg.astype(np.float32))
+        bg = lr[np.abs(lr - lf) > 0.06]
+        if len(bg) < 0.15 * len(lr):         # glyphs cover 20-40 % of a text box: a box that is nearly all
+            it["contrast"] = 1.0             # text-coloured means the text sits on its own colour (invisible)
+            continue
+        lb = float(np.median(bg))
+        it["contrast"] = round((max(lf, lb) + 0.05) / (min(lf, lb) + 0.05), 2)
+    return items
+
+
+
 # ------------------------------------------------------------------ workers
-def _init(engine, w, h, alpha, codec, crf, fps, outdir, ff):
-    _G.update(engine=engine, w=w, h=h, alpha=alpha, codec=codec, crf=crf, fps=fps, outdir=outdir, ff=ff)
+def _init(engine, w, h, alpha, codec, crf, fps, outdir, ff, probe_n=0, reuse=None):
+    _G.update(engine=engine, w=w, h=h, alpha=alpha, codec=codec, crf=crf, fps=fps, outdir=outdir, ff=ff, probe_n=probe_n,
+              reuse=reuse or {})
     _G["src"] = make_source(engine, w, h, alpha)
 
 
@@ -140,19 +198,74 @@ def _enc_cmd(out, w, h, fps, codec, crf, rgba_in, ff):
     return cmd + ["-r", str(fps), out]
 
 
+def sample_frames(frames):
+    """the frames that stand for a batch when deciding whether it changed: first, two inside, last"""
+    n = len(frames)
+    return sorted({frames[0], frames[n // 3], frames[(2 * n) // 3], frames[-1]})
+
+
+def frame_hash(img):
+    return hashlib.blake2b(np.ascontiguousarray(img).tobytes(), digest_size=16).hexdigest()
+
+
+def _one(i):
+    """render frame i (+ what text it shows, on the frames the text probe samples)"""
+    g = _G
+    pn = g.get("probe_n") or 0
+    sample = pn and i % pn == 0
+    if sample:
+        g["src"].begin_probe()
+    img = g["src"].frame(i, i / g["fps"])
+    if img.shape[0] != g["h"] or img.shape[1] != g["w"] or img.dtype != np.uint8:
+        raise RuntimeError(f"frame {i}: got {img.shape} {img.dtype}, need ({g['h']},{g['w']},3|4) uint8")
+    items = None
+    if sample:
+        items = g["src"].end_probe()
+        try:
+            items = measure([dict(x) for x in items], flatten(img, g["w"], g["h"])) if items is not None else None
+        except Exception as e:               # the checks must never break a render
+            items = None
+            print(f"text probe skipped at frame {i}: {e}", flush=True)
+    return img, items, sample
+
+
 def _render_chunk(args):
     ci, frames = args
     g = _G
     ext = ".mov" if g["codec"] == "prores" else ".mp4"
     out = os.path.join(g["outdir"], f"chunk{ci:05d}{ext}")
     rgba = g["codec"] == "prores" and g["alpha"]
+    t0 = time.time()
+    keys = sample_frames(frames)
+    hashes, pre = {}, {}
+    old = g["reuse"].get(ci)
+    if old and old.get("frames") == [frames[0], frames[-1]]:
+        # the same second rendered last time: if its sample frames come out identical, the old batch is reused
+        same = True
+        for i in keys:
+            pre[i] = _one(i)
+            hashes[str(i)] = frame_hash(pre[i][0])
+            if hashes[str(i)] != old["hashes"].get(str(i)):
+                same = False
+                break
+        if same:
+            import shutil
+            shutil.copyfile(old["file"], out)
+            if g.get("probe_n") and old.get("text") and os.path.exists(old["text"]):
+                shutil.copyfile(old["text"], os.path.join(g["outdir"], f"text{ci:05d}.json"))
+            elif g.get("probe_n"):
+                with open(os.path.join(g["outdir"], f"text{ci:05d}.json"), "w", encoding="utf-8") as f:
+                    json.dump({str(i): it for i, (_, it, smp) in pre.items() if smp}, f, ensure_ascii=False)
+            return ci, time.time() - t0, "reused", hashes
     p = subprocess.Popen(_enc_cmd(out, g["w"], g["h"], g["fps"], g["codec"], g["crf"], rgba, g["ff"]),
                          stdin=subprocess.PIPE, creationflags=NOWIN)
-    t0 = time.time()
+    probe = {}
     for i in frames:
-        img = g["src"].frame(i, i / g["fps"])
-        if img.shape[0] != g["h"] or img.shape[1] != g["w"] or img.dtype != np.uint8:
-            raise RuntimeError(f"frame {i}: got {img.shape} {img.dtype}, need ({g['h']},{g['w']},3|4) uint8")
+        img, items, smp = pre.pop(i) if i in pre else _one(i)
+        if i in keys and str(i) not in hashes:
+            hashes[str(i)] = frame_hash(img)
+        if smp:
+            probe[i] = items
         if rgba:
             if img.shape[2] == 3:
                 img = np.concatenate([img, np.full(img.shape[:2] + (1,), 255, np.uint8)], 2)
@@ -162,7 +275,60 @@ def _render_chunk(args):
     p.stdin.close(); p.wait()
     if p.returncode != 0:
         raise RuntimeError(f"ffmpeg failed on batch {ci}")
-    return ci, time.time() - t0, g["src"].dev
+    if g.get("probe_n"):
+        with open(os.path.join(g["outdir"], f"text{ci:05d}.json"), "w", encoding="utf-8") as f:
+            json.dump({str(k): v for k, v in probe.items()}, f, ensure_ascii=False)
+    return ci, time.time() - t0, g["src"].dev, hashes
+
+
+# ------------------------------------------------------------------ reuse of unchanged batches
+def cache_key(engine, w, h, fps, codec, crf, alpha, probe):
+    return hashlib.sha1(json.dumps([engine, w, h, fps, codec, int(crf), bool(alpha), bool(probe)]).encode()).hexdigest()[:16]
+
+
+def load_reuse(cdir, chunks):
+    """{batch: {frames, hashes, file, text}} from the last render of this size, only batches that cover the same frames"""
+    try:
+        idx = json.loads((cdir / "index.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    want = {k: [fr[0], fr[-1]] for k, fr in chunks}
+    out = {}
+    for k, e in (idx.get("chunks") or {}).items():
+        k = int(k)
+        f = cdir / e.get("file", "")
+        if want.get(k) == e.get("frames") and f.is_file() and e.get("hashes"):
+            out[k] = {"frames": e["frames"], "hashes": e["hashes"], "file": str(f),
+                      "text": str(cdir / e["text"]) if e.get("text") else ""}
+    return out
+
+
+def save_reuse(cdir, tmp, chunks, results, ext):
+    """keep this render's batches for next time (one set per size); what is no longer used goes"""
+    import shutil
+    cdir.mkdir(parents=True, exist_ok=True)
+    idx = {"chunks": {}}
+    keep = {"index.json"}
+    for k, fr in chunks:
+        r = results.get(k)
+        if not r:
+            continue
+        name, tname = f"chunk{k:05d}{ext}", f"text{k:05d}.json"
+        src, tsrc = tmp / name, tmp / tname
+        if r["dev"] != "reused" or not (cdir / name).exists():
+            os.replace(src, cdir / name) if src.exists() else None
+        if tsrc.exists() and (r["dev"] != "reused" or not (cdir / tname).exists()):
+            shutil.copyfile(tsrc, cdir / tname)
+        idx["chunks"][str(k)] = {"frames": [fr[0], fr[-1]], "hashes": r["hashes"], "file": name,
+                                 "text": tname if (cdir / tname).exists() else ""}
+        keep |= {name, tname}
+    for f in cdir.iterdir():
+        if f.name not in keep:
+            try:
+                f.unlink()
+            except OSError:
+                pass
+    (cdir / "index.json").write_text(json.dumps(idx), encoding="utf-8")
 
 
 def _selftest_key():
@@ -211,6 +377,21 @@ def gpu_selftest(meta):
     print("GPU self-test FAILED -> CPU. Error:\n" + r.stderr[-1500:]); return False
 
 
+def write_probe(path, tmp, chunks, engine, w, h, fps, probe_n):
+    samples, supported = [], False
+    for k, _ in chunks:
+        try:
+            d = json.loads((tmp / f"text{k:05d}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for i, items in d.items():
+            supported = supported or items is not None
+            samples.append({"t": round(int(i) / fps, 4), "items": items or []})
+    samples.sort(key=lambda s: s["t"])
+    Path(path).write_text(json.dumps({"engine": engine, "W": w, "H": h, "step": probe_n / fps, "supported": supported,
+                                      "samples": samples}, ensure_ascii=False), encoding="utf-8")
+
+
 def parse_size(s, meta):
     if not s:
         return meta["W"], meta["H"]
@@ -227,6 +408,7 @@ def main():
     ap.add_argument("--stills", default="")
     ap.add_argument("--times", default="")
     ap.add_argument("--meta", action="store_true")
+    ap.add_argument("--textprobe", default="", help="write what text is on screen every 0.25 s (for the checks)")
     a = ap.parse_args()
     meta = load_meta()
     if a.meta:
@@ -283,20 +465,44 @@ def main():
     print(f"{kind} render ({engine} engine): {len(frames)} frames {w}x{h} @ {fps:g} fps, {len(chunks)} batches of {chunk} frames, "
           f"{nw} workers, {codec}", flush=True)
     t0 = time.time(); done = 0
-    with Pool(nw, initializer=_init, initargs=(engine, w, h, meta["alpha"], codec, a.crf, fps, str(tmp), ff)) as pool:
-        for ci, dt, dev in pool.imap_unordered(_render_chunk, chunks):
+    probe_n = max(1, int(round(fps / 4))) if a.textprobe else 0
+    ext = ".mov" if codec == "prores" else ".mp4"
+    # VZ_CHUNK_CACHE: seconds whose picture did not change since the last render of this size are copied, not rendered
+    cdir = None
+    if os.environ.get("VZ_CHUNK_CACHE") and os.environ.get("VZ_NO_REUSE") != "1":
+        cdir = Path(os.environ["VZ_CHUNK_CACHE"]) / cache_key(engine, w, h, fps, codec, a.crf, meta["alpha"], probe_n)
+    reuse = load_reuse(cdir, chunks) if cdir else {}
+    if reuse:
+        print(f"{len(reuse)} of {len(chunks)} batches were rendered at this size before: unchanged ones are reused", flush=True)
+    results, reused = {}, 0
+    with Pool(nw, initializer=_init, initargs=(engine, w, h, meta["alpha"], codec, a.crf, fps, str(tmp), ff, probe_n,
+                                               reuse)) as pool:
+        for ci, dt, dev, hashes in pool.imap_unordered(_render_chunk, chunks):
             done += 1
+            results[ci] = {"dev": dev, "hashes": hashes}
             el = time.time() - t0
             # the first batches finish together (one per worker) and include each worker's warm-up, so until a
             # full round is done, the work in flight counts as done: avoids a "45 min left" that is really ~15
             left = el / max(done, min(nw, len(chunks))) * (len(chunks) - done)
-            print(f"[{done}/{len(chunks)}] batch {ci} in {dt:.0f}s on {dev} | elapsed {el:.0f}s, "
-                  f"~{left:.0f}s left", flush=True)
-    ext = ".mov" if codec == "prores" else ".mp4"
+            if dev == "reused":
+                reused += 1
+                print(f"[{done}/{len(chunks)}] batch {ci} unchanged, reused | elapsed {el:.0f}s, ~{left:.0f}s left", flush=True)
+            else:
+                print(f"[{done}/{len(chunks)}] batch {ci} in {dt:.0f}s on {dev} | elapsed {el:.0f}s, "
+                      f"~{left:.0f}s left", flush=True)
     lst = tmp / "list.txt"
     lst.write_text("".join(f"file 'chunk{k:05d}{ext}'\n" for k, _ in chunks), encoding="utf-8")
     subprocess.run([ff, "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out)],
                    check=True, creationflags=NOWIN)
+    if probe_n:
+        write_probe(a.textprobe, tmp, chunks, engine, w, h, fps, probe_n)
+    if cdir:
+        try:
+            save_reuse(cdir, tmp, chunks, results, ext)
+        except OSError as e:
+            print(f"(couldn't keep the batches for next time: {e})", flush=True)
+    if reused:
+        print(f"reused {reused} unchanged batch(es) of {len(chunks)} from the last render", flush=True)
     for f in tmp.iterdir():
         f.unlink()
     tmp.rmdir()

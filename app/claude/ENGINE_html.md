@@ -40,7 +40,10 @@ project.json
   render. Never encode it yourself from the light copy for delivery (a test copy at that path is fine).
 - Canvas: size it to `VZ.W × VZ.H` (or the design size when not responsive) and redraw fully in onFrame.
 - Alpha: keep html/body/#stage transparent; the runtime enforces it.
-- Text renders crisp at any size; prefer real text/SVG over bitmaps.
+- Text renders crisp at any size; prefer real text/SVG over bitmaps. **Keep text real DOM/SVG text** (not
+  canvas or images): the checks read it via `VZ.textLayout()` – cut off, off the frame, in the app's button zones,
+  too small, too faint, too brief, alphabet, spelling. Mark captions `data-vz-caption` (or id/class `captions`),
+  decorative text not meant to be read (background texture, scrolling code) `data-vz-ignore`.
 - `audio.py` is still Python (numpy/scipy) and writes `mix.wav` (SFX only; silence is fine).
 - Preview the page in the sandbox only via `tools/sandbox_check.py` (it uses the same renderer).
 

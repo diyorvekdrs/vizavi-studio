@@ -23,7 +23,10 @@ audio.py  writes mix.wav (may import NFR/FPS from film)
 - Scale every size with `min(W, H)` or `W / design_W`; never hard-code pixels.
 - Fonts: `Path(__file__).parent / "fonts" / "Poppins-Medium.ttf"` (Poppins-Light/Regular/Medium,
   DejaVuSans, DejaVuSans-Bold, DejaVuSansMono) or brand fonts in `brand/`. Text via Pillow on the
-  host after `cpu()`; supersample 2× for crisp edges.
+  host after `cpu()`; supersample 2× for crisp edges. **Draw all on-screen text with the template's `text()` and
+  `captions()`** (or call `_note_text(...)` from your own text code): they report what is on screen to the
+  automatic checks (cut off, in the app's button zones, too small, too faint, too brief, alphabet, spelling);
+  text drawn any other way goes unchecked.
 - Images/clips from `assets/`: load with Pillow / ffmpeg in `prepare_assets()`, cache as .npy. These are the
   full-size originals at render time (you only have light copies – `input/ASSETS.md`): size by the frame,
   never by the copy's pixels; cuts/crops go in `media.json` (the app makes them from the original).

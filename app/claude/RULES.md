@@ -69,9 +69,10 @@ app puts the final, precisely timed `input/words.tsv` + `input/captions.srt` nex
 
 ## Tools
 ```
-python tools/sandbox_check.py episode                   # stills, spec check, other aspects, camera, sound
+python tools/sandbox_check.py episode                   # stills, spec, text on screen, other aspects, camera, sound
 python tools/sandbox_check.py episode --times 12.4,31   # only what you changed
 python tools/vizavi_pack.py --kind preview|final --note "..."
 ```
 Outputs: `check/sheet_XX.jpg` (labelled: time, frame, scene, spoken word), `check/variant_<id>.jpg`,
-`check/audio_plot.png`, `check/report.txt`. Fix every ERROR line before packing.
+`check/audio_plot.png`, `check/report.txt`. Fix every ERROR line (P0/P1) before packing. The app runs the same
+ranked checks on every preview (`review/report.md`) and asks the user before approving a final with P0/P1 left.

@@ -1,2 +1,5 @@
 # the README's pictures are for GitHub only - keep them out of the download
 docs/ export-ignore
+# tests and the CI setup are for development - keep them out of the download
+tests/ export-ignore
+.github/ export-ignore

@@ -190,6 +190,15 @@ def finish(lin, i, exposure=1.0):
 
 # ------------------------------------------------------------------ text & captions (host, after finish)
 _FONTS = {}
+TEXT_LOG = None    # the renderer sets a list here a few times a second: text() and captions() note what they draw
+                   # (for the automatic text checks - draw ALL on-screen text through these two)
+
+
+def _note_text(s, box, px, color, alpha, cap=False):
+    if TEXT_LOG is not None and alpha > 0.15 and str(s).strip():
+        TEXT_LOG.append({"k": ("cap" if cap else f"{s}"), "text": str(s), "box": [float(v) for v in box],
+                         "px": float(px), "color": [int(c) for c in color[:3]], "op": float(alpha), "cap": cap,
+                         "clip": False})
 
 
 def font(px, name="Poppins-Medium.ttf"):
@@ -205,8 +214,9 @@ def text(img, s, x, y, size=0.06, color=(240, 240, 240), alpha=1.0, anchor="mm",
         return img
     im = Image.fromarray(img).convert("RGBA")
     ov = Image.new("RGBA", im.size, (0, 0, 0, 0))
-    ImageDraw.Draw(ov).text((x, y), s, font=font(size * min(W, H), name),
-                            fill=tuple(color) + (int(255 * clamp(alpha)),), anchor=anchor)
+    d, f = ImageDraw.Draw(ov), font(size * min(W, H), name)
+    d.text((x, y), s, font=f, fill=tuple(color) + (int(255 * clamp(alpha)),), anchor=anchor)
+    _note_text(s, d.textbbox((x, y), s, font=f, anchor=anchor), f.size, color, alpha)
     return np.asarray(Image.alpha_composite(im, ov).convert("RGB"))
 
 
@@ -237,11 +247,15 @@ def captions(img, t, max_chars=32, safe_bottom=0.12):
     y = H * (1 - safe_bottom) - f.size
     started = [w for w in WORDS if w[0] <= t]
     act = started[-1] if started and t <= started[-1][1] + 0.25 else None   # exactly one active word
+    x_start = x
     for (s, e, w), wd in zip(g, widths):
         col = (255, 190, 90, 255) if (s, e, w) == act else (245, 245, 245, 235)
         d.text((x + 2 * U, y + 2 * U), w, font=f, fill=(0, 0, 0, 160))
         d.text((x, y), w, font=f, fill=col)
         x += wd
+    line = " ".join(w[2] for w in g)
+    bb = d.textbbox((x_start, y), line, font=f)
+    _note_text(line, bb, f.size, (245, 245, 245), 1.0, cap=True)
     return np.asarray(Image.alpha_composite(im, ov).convert("RGB"))
 
 

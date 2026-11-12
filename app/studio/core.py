@@ -11,8 +11,10 @@ from pathlib import Path
 from .core_paths import APP, KIT, CL, TOOLS, ENGINES, FONTS, LIB, SETTINGS, is_inside, safe_member
 from . import order as OD
 import vz_analysis as va
+import vz_checks as vc
 
 from .version import VERSION
+from . import trash as TR
 NOWIN = va.NOWIN
 AUDIO_EXT = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma", ".aiff", ".aif"}
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff", ".svg", ".gif"}
@@ -26,7 +28,7 @@ DEFAULTS = {
     "projects_dir": str(APP / "Projects"),
     "whisper_model": "large-v3", "whisper_device": "auto", "script_as_hint": True,
     "preview_long_side": 960, "preview_crf": 22, "final_crf": 14, "workers": "",
-    "watch_downloads": True, "downloads_dir": "",
+    "watch_downloads": True, "downloads_dir": "", "reuse_unchanged": True,
     "auto_play_preview": True, "models_dir": "", "review_zip_max_mb": 25,
     "uzbek_model": "islomov/rubaistt_v2_medium", "precise_timing": True,
     "mms_model": "MahmoudAshraf/mms-300m-1130-forced-aligner", "request_zip_max_mb": 28, "library_in_request": 3,
@@ -401,31 +403,9 @@ def repair_stuck(S):
 
 
 def delete_project(pr, S):
-    """moves the project folder to the Windows Recycle Bin (undoable); elsewhere / on failure to
-    <projects>/_deleted/. Returns where it went."""
-    src = Path(pr.root)
-    if os.name == "nt":
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            class SHFILEOPSTRUCTW(ctypes.Structure):
-                _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT), ("pFrom", wintypes.LPCWSTR),
-                            ("pTo", wintypes.LPCWSTR), ("fFlags", ctypes.c_ushort), ("fAnyOperationsAborted", wintypes.BOOL),
-                            ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", wintypes.LPCWSTR)]
-            FO_DELETE, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_SILENT, FOF_NOERRORUI = 3, 0x40, 0x10, 0x4, 0x400
-            op = SHFILEOPSTRUCTW(None, FO_DELETE, str(src) + "\0", None,
-                                 FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI, False, None, None)
-            if ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op)) == 0 and not op.fAnyOperationsAborted \
-                    and not src.exists():
-                return "Recycle Bin"
-        except Exception:
-            pass
-    dest_root = Path(S["projects_dir"]) / "_deleted"
-    dest_root.mkdir(parents=True, exist_ok=True)
-    dest = dest_root / f"{src.name}__{time.strftime('%Y%m%d_%H%M%S')}"
-    shutil.move(str(src), str(dest))
-    return str(dest_root)
+    """moves the project folder to Recently deleted (<projects>/_deleted), restorable for 30 days from Settings"""
+    TR.to_trash(pr.root, S, "project", pr.name)
+    return "Recently deleted"
 
 STAGE_TEXT = {
     "stopped": "stopped - press Retry render",
@@ -897,8 +877,8 @@ def save_style(pr, name, note, S, ctx):
         raise UserMessage("Give the style a name.")
     root = styles_dir(S)
     d = root / sid
-    if d.exists():
-        shutil.rmtree(d)
+    if d.exists():                       # saving over a style keeps the old one in Recently deleted
+        delete_style(S, sid) if (d / "style.json").exists() else shutil.rmtree(d)
     d.mkdir(parents=True)
     n = 0
     for rel, p in episode_files(src):
@@ -962,9 +942,11 @@ def delete_style(S, sid):
     d = styles_dir(S) / safe_name(str(sid or ""))
     if not (d / "style.json").exists():
         raise UserMessage("That style no longer exists.")
-    trash = styles_dir(S) / "_deleted"
-    trash.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(d), str(trash / f"{d.name}_{time.strftime('%Y%m%d_%H%M%S')}"))
+    try:
+        name = json.loads((d / "style.json").read_text(encoding="utf-8")).get("name") or d.name
+    except (OSError, ValueError):
+        name = d.name
+    TR.to_trash(d, S, "style", name)
 
 
 def style_entries(S, o):
@@ -1073,7 +1055,8 @@ def common_entries(pr, kind, task_md, next_version, extra_manifest=None, narrati
            "variants": OD.variants(o), "alpha": o["alpha"], "engine": o["engine"],
            "duration": pr.state.get("duration"), "suggested_nfr": pr.state.get("suggested_nfr"),
            "narration_duration": pr.state.get("narration_duration"),
-           "transcript_source": pr.state.get("transcript_source"), "transcript_match": pr.state.get("transcript_match")}
+           "transcript_source": pr.state.get("transcript_source"), "transcript_match": pr.state.get("transcript_match"),
+           "text_checks": text_check_opts(pr)}
     man.update(extra_manifest or {})
     E = [("vizavi.json", json.dumps(man, indent=1, ensure_ascii=False)), ("CLAUDE_TASK.md", task_md),
          ("RULES.md", CL / "RULES.md"), ("DIRECTION.md", CL / "DIRECTION.md"),
@@ -1100,7 +1083,7 @@ def common_entries(pr, kind, task_md, next_version, extra_manifest=None, narrati
     E.append(("kit/vz.js", ENGINES / "vz.js"))
     E.append(("templates", CL / "templates"))
     E.append(("PLAN_TEMPLATE.md", CL / "PLAN_TEMPLATE.md"))
-    for f in ("vz_analysis.py", "sandbox_check.py", "vizavi_pack.py", "vz_align.py", "retime.py"):
+    for f in ("vz_analysis.py", "vz_checks.py", "sandbox_check.py", "vizavi_pack.py", "vz_align.py", "retime.py"):
         E.append((f"tools/{f}", TOOLS / f))
     E.append(("fonts", FONTS))
     E += hardware_entry()
@@ -1585,13 +1568,18 @@ def spec_mismatch(meta, o):
     return out
 
 
-def render_env(S):
-    """worker counts fitted to this PC (hw.profile); a number in settings "workers" overrides all."""
+def render_env(S, pr=None):
+    """worker counts fitted to this PC (hw.profile); a number in settings "workers" overrides all.
+    With a project: where the renderer keeps the last render's batches, so seconds that did not change are reused."""
     if str(S.get("workers", "")).strip():
-        return {"WORKERS": str(S["workers"])}
-    p = S.get("hw") or {}
-    return {k: str(p[v]) for k, v in (("GPU_WORKERS", "gpu_workers"), ("CPU_WORKERS", "cpu_workers"),
-                                      ("HTML_WORKERS", "html_workers")) if p.get(v)} or None
+        env = {"WORKERS": str(S["workers"])}
+    else:
+        p = S.get("hw") or {}
+        env = {k: str(p[v]) for k, v in (("GPU_WORKERS", "gpu_workers"), ("CPU_WORKERS", "cpu_workers"),
+                                         ("HTML_WORKERS", "html_workers")) if p.get(v)}
+    if pr is not None and S.get("reuse_unchanged", True):
+        env["VZ_CHUNK_CACHE"] = str(pr.work / "_render_cache")
+    return env or None
 
 
 def render_preview(pr, wd, ver, S, ctx):
@@ -1606,8 +1594,10 @@ def render_preview(pr, wd, ver, S, ctx):
     on_line, rs = render_progress(ctx, 0, 0.7)
     (wd / "out").mkdir(exist_ok=True)
     tr = time.time()
-    run_proc([py_exe(), "vzrender.py", "out/preview.mp4", "--size", f"{pw}x{ph}", "--crf", S["preview_crf"]], wd, ctx,
-             "preview render", env=render_env(S), on_line=on_line, logfile=log)
+    (wd / "out" / "text.json").unlink(missing_ok=True)
+    run_proc([py_exe(), "vzrender.py", "out/preview.mp4", "--size", f"{pw}x{ph}", "--crf", S["preview_crf"],
+              "--textprobe", "out/text.json"], wd, ctx,
+             "preview render", env=render_env(S, pr), on_line=on_line, logfile=log)
     render_s = time.time() - tr
     ctx.progress(0.72, "Building the sound + mix", until=0.76)
     run_proc([py_exe(), "audio.py"], wd, ctx, "audio.py", logfile=log)
@@ -1643,9 +1633,12 @@ def render_preview(pr, wd, ver, S, ctx):
     pr.set("preview_ready", f"preview v{ver} ready", last_zip=str(z), last_kind="review", last_version=ver,
            last_preview=str(prev), preview_v=ver)
     ctx.progress(1, "Preview ready")
-    flags = json.loads((rv / "report.json").read_text(encoding="utf-8"))["flags"]
+    rj = json.loads((rv / "report.json").read_text(encoding="utf-8"))
+    iss, c = rj.get("issues") or [], rj.get("counts") or {}
     ctx.log(f"✓ preview v{ver} in {time.time() - t0:.0f}s → {prev.name}; review package {z.name} "
-            f"({z.stat().st_size / 1e6:.1f} MB); {len(flags)} automatic flag(s)" + (": " + "; ".join(flags[:3]) if flags else ""))
+            f"({z.stat().st_size / 1e6:.1f} MB); checks: " + (", ".join(f"{c[k]} {k}" for k in ("P0", "P1", "P2", "P3") if c.get(k))
+                                                             or "nothing found")
+            + (" – " + "; ".join(i["text"] for i in iss[:3]) if iss else ""))
     return {"kind": "preview", "video": prev, "zip": z, "episode": pr}
 
 
@@ -1826,6 +1819,42 @@ def hud_pass(video, audio_wav, out, words, scenes, fps, ctx, beats=None, safe="n
     os.remove(str(out) + ".log")
 
 
+LATIN_RULE = re.compile(r"latin|lotin", re.I)
+
+
+def text_check_opts(pr):
+    """what the text checks need to know about the order: the platform's button zones and the Latin-only rule"""
+    o = pr.order
+    rules = " ".join(str(o.get(k) or "") for k in ("standing_rules", "care", "wants"))
+    return {"safe": OD.SAFE_BOXES.get(o.get("safe_area") or "none"), "latin_only": bool(LATIN_RULE.search(rules))}
+
+
+def text_vocab(pr):
+    """the words the video is about, spelled right: the author's script and the transcript"""
+    parts = []
+    for f in ("script.txt", "transcript_claude.md", "transcript.txt"):
+        try:
+            parts.append((pr.src / f).read_text(encoding="utf-8"))
+        except OSError:
+            pass
+    parts.append(" ".join(w[2] for w in pr.words()))
+    parts.append(str(pr.order.get("wants") or ""))
+    return "\n".join(parts)
+
+
+def run_text_checks(pr, probe_file, o):
+    """(issues, summary) from the renderer's text probe; ([], None) when there is nothing to judge"""
+    try:
+        P = json.loads(Path(probe_file).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return [], None
+    if not P.get("supported"):
+        return [], None
+    opts = text_check_opts(pr)
+    return vc.analyze_text(P["samples"], P["W"], P["H"], step=P.get("step", 0.25), safe=opts["safe"],
+                           vocab_text=text_vocab(pr), latin_only=opts["latin_only"])
+
+
 def make_report(pr, wd, ver, meta, rv, render_s, dev, psize, o, rs=None):
     fps, nfr = meta["fps"], meta["nfr"]
     vd = nfr / fps
@@ -1869,6 +1898,8 @@ def make_report(pr, wd, ver, meta, rv, render_s, dev, psize, o, rs=None):
             beat_rows.append(f"| {sc[0]} | {sc[1]:.2f} | {b:.2f} | {off:+.3f} |")
             if abs(off) > 1.5 / fps:
                 flags.append(f"scene '{sc[0]}' starts {off:+.2f}s off the nearest beat")
+    text_issues, text_sum = run_text_checks(pr, wd / "out" / "text.json", o)
+    issues = vc.ranked(flags, text_issues)
     full = max(OD.variants(o)[0]["w"], OD.variants(o)[0]["h"])
     est = render_s * (full / max(psize)) ** 2 / 60 * len(OD.variants(o))
     cost = {}       # where the render time goes, per scene (worker seconds of the preview render)
@@ -1883,8 +1914,9 @@ def make_report(pr, wd, ver, meta, rv, render_s, dev, psize, o, rs=None):
           f"- durations: video {vd:.2f}s ({nfr} f), narration {ares.get('narration_duration')}s, ordered {want}s",
           f"- mean luma {vres.get('mean_luma')}, median frame-to-frame change {vres.get('motion_p50')}",
           "- the preview audio always includes the narration (for judging sync), even if the export won't", "",
-          "## Flags (fix, or accept consciously)"]
-    md += [f"- {f}" for f in flags] or ["- none"]
+          "## Findings, most severe first (fix P0/P1; P2/P3 if the pass has room)"]
+    md += vc.report_md(issues, text_sum, meta["engine"])
+    md += [f"- **{i['rank']}** {i['text']}" for i in issues] or ["- none"]
     md += ["", "## Scene boundaries", "| t | frame | change | type |", "|---|---|---|---|"]
     md += [f"| {b['t']} | {b['frame']} | {b['change']} | {b['type']} |" for b in vres.get("boundaries", [])]
     md += ["", "## Camera", "- n/a (html engine)" if meta["engine"] == "html" else
@@ -1907,7 +1939,8 @@ def make_report(pr, wd, ver, meta, rv, render_s, dev, psize, o, rs=None):
     if len(OD.variants(o)) > 1:
         md += ["", "## Other aspect versions", "Stills: " + ", ".join(f"variant_{v['id']}.jpg" for v in OD.variants(o)[1:])]
     (rv / "report.md").write_text("\n".join(md) + "\n", encoding="utf-8")
-    (rv / "report.json").write_text(json.dumps({"flags": flags, "video": {k: v for k, v in vres.items() if not k.startswith("_")},
+    (rv / "report.json").write_text(json.dumps({"flags": flags, "issues": issues, "counts": vc.counts(issues),
+                                                "text": text_sum, "video": {k: v for k, v in vres.items() if not k.startswith("_")},
                                                 "audio": ares, "camera": cam, "render_seconds": render_s,
                                                 "est_final_min": round(est, 1), "scene_cost": cost},
                                                indent=1, default=str), encoding="utf-8")
@@ -1958,7 +1991,7 @@ def render_final(pr, wd, ver, S, ctx):
                                       f"{meta['engine']} engine", until=0.03 + (k + 0.85) * span)
         on_line, _ = render_progress(ctx, 0.03 + k * span, span * 0.85)
         run_proc([py_exe(), "vzrender.py", master, "--size", f"{v['w']}x{v['h']}", "--crf", S["final_crf"]] +
-                 (["--codec", "prores"] if alpha else []), wd, ctx, f"final render {v['id']}", env=render_env(S),
+                 (["--codec", "prores"] if alpha else []), wd, ctx, f"final render {v['id']}", env=render_env(S, pr),
                  on_line=on_line, logfile=log)
         ctx.progress(0.03 + (k + 0.85) * span, f"Encoding {', '.join(o['formats'])} for {v['id']}",
                      until=0.03 + (k + 1) * span)

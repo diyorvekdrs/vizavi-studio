@@ -234,14 +234,22 @@ function liveTrack() {
   if (S.running === S.cur.name || /New project/.test(S.job)) seg.style.width = ((S.status && S.status.frac) || 0) * 100 + "%";
 }
 
+const RANK = { P0: "Broken", P1: "Serious", P2: "Worth fixing", P3: "Polish" };
+const RANK_TIP = { P0: "The video is broken – fix before anything else", P1: "A viewer would stop watching or misread it here",
+  P2: "Costs attention – fix if there is time", P3: "Finishing touches" };
+const issuesOf = p => p.issues || (p.flags || []).map(t => ({ rank: "P2", text: t }));
+const serious = p => issuesOf(p).filter(i => i.rank === "P0" || i.rank === "P1");
 function checksCard(p) {
-  const fl = p.flags || [], est = p.est_final_min, cost = p.scene_cost || [];
-  if (!["preview_ready", "rendering_final", "done"].includes(p.stage) || (!fl.length && est == null && !cost.length)) return "";
+  const iss = issuesOf(p), est = p.est_final_min, cost = p.scene_cost || [];
+  if (!["preview_ready", "rendering_final", "done"].includes(p.stage) || (!iss.length && est == null && !cost.length)) return "";
   const tot = cost.reduce((a, c) => a + c[1], 0) || 1;
-  return `<div class="card checks"><h3>Automatic checks
-      ${fl.length ? `<span class="pill warn">${fl.length} to look at</span>` : `<span class="pill okp">nothing flagged</span>`}</h3>
+  const n = r => iss.filter(i => i.rank === r).length;
+  const pills = ["P0", "P1", "P2", "P3"].filter(n).map(r => `<span class="pill rk ${r}" title="${esc(RANK_TIP[r])}">${n(r)} ${esc(RANK[r].toLowerCase())}</span>`).join("");
+  return `<div class="card checks"><h3>Automatic checks ${pills || `<span class="pill okp">nothing found</span>`}</h3>
     ${est != null && p.stage === "preview_ready" ? `<p class="quiet est">The final render will take ${esc(fmtMin(est))} on this PC.</p>` : ""}
-    ${fl.length ? `<details data-k="flags"><summary>What was flagged</summary><ul>${fl.map(f => `<li>${esc(f)}</li>`).join("")}</ul></details>` : ""}
+    ${iss.length ? `<details data-k="flags" ${n("P0") + n("P1") ? "open" : ""}><summary>What was found</summary><ul class="issues">${iss.map(i =>
+      `<li><span class="rk ${esc(i.rank)}" title="${esc(RANK_TIP[i.rank] || "")}">${esc(RANK[i.rank] || i.rank)}</span>${esc(i.text)}</li>`).join("")}</ul>
+      <p class="quiet" style="margin:6px 0 0">Claude gets this list with the review package and fixes the serious ones first.</p></details>` : ""}
     ${cost.length ? `<details data-k="cost"><summary>Where the render time goes</summary><table class="cost">${cost.map(([n, s]) =>
       `<tr><td>${esc(n)}</td><td><i style="width:${Math.max(2, 100 * s / tot)}%"></i></td><td>${Math.round(s)} s</td></tr>`).join("")}</table></details>` : ""}</div>`;
 }
@@ -258,6 +266,30 @@ function sizePicker(p) {     // lowering the final size is the biggest speed-up 
   const opts = [[0, `As ordered (${p.size})`], ...[1920, 1280].filter(v => v < long).map(v => [v, `${v} px long side (about ${(long * long / (v * v)).toFixed(1)}× faster)`])];
   return `<label class="fsize">Final size <select id="fsize" data-idle>${opts.map(([v, t]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
 }
+/* quick notes: each adds one line Claude reads as one separate change (text after the colon says where / what) */
+const CHIPS = [["Bolder", "Bolder: "], ["Quieter", "Quieter (less motion/glow/music): "], ["Faster", "Faster pacing: "],
+  ["Shorter", "Shorter: "], ["Bigger text", "Bigger, easier to read text: "], ["Fix sound", "Sound: "],
+  ["Polish", "Polish: fix the remaining smaller findings from the automatic checks, change nothing else"]];
+function addChip(label) {
+  const ta = $("#notes"); if (!ta) return;
+  const line = (CHIPS.find(c => c[0] === label) || [0, label + ": "])[1];
+  ta.value = ta.value.replace(/\s*$/, "") + (ta.value.trim() ? "\n" : "") + "• " + line;
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function ruleDialog() {
+  const ta = $("#notes"), sel = ta && ta.selectionEnd > ta.selectionStart ? ta.value.slice(ta.selectionStart, ta.selectionEnd) : "";
+  const first = (sel || (ta ? ta.value : "")).split("\n").map(l => l.replace(/^[•\-\s]+/, "").trim()).filter(Boolean);
+  openDialog(`<div class="dh"><h2>Save as a rule</h2><button class="link" data-close>Close</button></div>
+    <div class="db"><p class="quiet" style="margin-top:0">A rule is added to every new project (Settings → My rules). Write it so it is true for all your videos – e.g. “Captions sit above the bottom quarter”, not “move this caption”.</p>
+    <textarea id="ruleTxt" style="min-height:90px" autofocus>${esc(first.length === 1 ? first[0] : sel.trim())}</textarea></div>
+    <div class="df"><span class="err grow" id="ruleErr"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="ruleSave">Save rule</button></div>`,
+    d => $("#ruleSave", d).onclick = async () => {
+      try { const r = await api("/api/act", { action: "add_rule", text: $("#ruleTxt").value });
+        S.meta = await api("/api/meta"); dlg.close(); toast(r.added ? "Rule saved – new projects follow it" : "You already have that rule", r.added ? "done" : "info", 4000); }
+      catch (e) { $("#ruleErr").textContent = e.message; }
+    });
+}
 function moveCard(p) {
   const zip = p.last_zip ? `<code>${esc(p.last_zip)}</code>` : "the zip";
   switch (p.stage) {
@@ -269,8 +301,10 @@ function moveCard(p) {
       <p>Happy with it? Approve and the final renders right away. Want changes? Write them below and send the review zip to the same Claude chat.</p>
       <div class="row"><button class="btn primary" data-a="approve" data-idle>Approve and render final</button>
       <button class="btn" data-a="copy">Copy message</button><button class="btn" data-a="reveal_zip">Show review zip</button>${sizePicker(p)}</div>
-      <div class="notes"><textarea id="notes" placeholder="What should change, what should stay – Claude reads this first. Saved as you type."></textarea>
-      <div class="row" style="margin-top:8px"><button class="btn" data-a="notes" data-idle>Build review package with these notes</button><span class="quiet" id="notesState"></span></div></div></div>`;
+      <div class="notes"><div class="chips" role="group" aria-label="Quick notes">${CHIPS.map(([t]) => `<button class="chip" data-chip="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <textarea id="notes" placeholder="What should change, what should stay – Claude reads this first. Saved as you type. One change per line works best."></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn" data-a="notes" data-idle>Build review package with these notes</button><span class="quiet grow" id="notesState"></span>
+      <button class="link" data-a="add_rule" title="Keep a note for every future project (Settings → My rules)">Save as a rule…</button></div></div></div>`;
     case "error": return `<div class="move bad"><h2>The render failed</h2>
       <p>If a file was missing (e.g. your footage), add it and press <b>Retry render</b>. Otherwise drag ${zip} into the same Claude chat and paste the message – Claude sends back a fixed zip.</p>
       ${problemLine(p)}
@@ -361,7 +395,7 @@ function renderView(p, keepVideo) {
     if (sel) { ta.focus({ preventScroll: true }); ta.setSelectionRange(sel[0], sel[1]); }
   }
   if ($(".tx") && txScroll) $(".tx").scrollTop = txScroll;
-  document.querySelectorAll("#view details[data-k]").forEach(d => { d.open = !!S.ui[d.dataset.k]; d.addEventListener("toggle", () => { S.ui[d.dataset.k] = d.open; }); });
+  document.querySelectorAll("#view details[data-k]").forEach(d => { d.open = d.dataset.k in S.ui ? !!S.ui[d.dataset.k] : d.hasAttribute("open"); d.addEventListener("toggle", () => { S.ui[d.dataset.k] = d.open; }); });
   liveTrack();
   applyBusy();
 }
@@ -392,10 +426,11 @@ async function act(action, extra = {}, name = S.current) {
   try { return await api("/api/act", { action, name, ...extra }); } catch (e) { toast(e.message, "error"); }
 }
 $("#view").addEventListener("click", async e => {
+  const chip = e.target.closest("[data-chip]"); if (chip) return addChip(chip.dataset.chip);
   const b = e.target.closest("[data-a]"); if (!b || b.disabled) return;
   const a = b.dataset.a, p = S.cur;
   if (a === "copy") return copy(p.message);
-  if (a === "approve") { const r = await act("approve"); if (r) toast("Final queued – progress along the bottom", "info", 3500); return; }
+  if (a === "approve") { const bad = serious(p); if (bad.length) return approveDialog(p, bad); return approveNow(); }
   if (a === "notes") {
     const t = ($("#notes").value || "").trim(); if (!t) return toast("Write your notes first", "warn", 3500);
     clearTimeout(notesTimer);
@@ -404,6 +439,7 @@ $("#view").addEventListener("click", async e => {
     return;
   }
   if (a === "redo") return redoDialog();
+  if (a === "add_rule") return ruleDialog();
   if (a === "save_style") return styleDialog();
   if (a === "delete") return deleteDialog();
   if (a === "new") return newProject({});
@@ -477,12 +513,25 @@ dlg.addEventListener("click", e => { if (e.target.closest("[data-close]")) dlg.c
 function deleteDialog() {
   const p = S.cur; if (!p) return;
   openDialog(`<div class="dh"><h2>Delete “${esc(p.name)}”?</h2></div>
-    <div class="db"><p>The whole project folder – narration copy, renders and zips – goes to the Recycle Bin. You can restore it from there.</p></div>
+    <div class="db"><p>The whole project folder – narration copy, renders and zips – goes to <b>Recently deleted</b>. You can restore it from <b>Settings</b> for ${(S.meta && S.meta.trash_days) || 30} days.</p></div>
     <div class="df"><button class="btn" data-close autofocus>Keep it</button><button class="btn danger" id="del">Delete project</button></div>`,
     d => $("#del", d).onclick = async () => {
       dlg.close(); const r = await act("delete", {}, p.name);
-      if (r) { toast(`Deleted “${p.name}”`, "info", 3000); S.cur = null; S.viewSig = ""; if (S.current === p.name) { S.current = null; S.stamp = null; } await loadProjects().catch(() => {}); }
+      if (r) { toast(`Deleted “${p.name}” – restore it in Settings → Recently deleted`, "info", 5000); S.meta = await api("/api/meta").catch(() => S.meta); S.cur = null; S.viewSig = ""; if (S.current === p.name) { S.current = null; S.stamp = null; } await loadProjects().catch(() => {}); }
     });
+}
+
+async function approveNow(name = S.current) {
+  const r = await act("approve", {}, name); if (r) toast("Final queued – progress along the bottom", "info", 3500);
+}
+function approveDialog(p, bad) {
+  openDialog(`<div class="dh"><h2>Render the final anyway?</h2><button class="link" data-close>Close</button></div>
+    <div class="db"><p>The automatic checks found ${bad.length} serious problem${bad.length === 1 ? "" : "s"} in this preview:</p>
+    <ul class="issues">${bad.slice(0, 6).map(i => `<li><span class="rk ${esc(i.rank)}">${esc(RANK[i.rank])}</span>${esc(i.text)}</li>`).join("")}</ul>
+    ${bad.length > 6 ? `<p class="quiet">…and ${bad.length - 6} more.</p>` : ""}
+    <p class="quiet">Sending the review package to Claude fixes them first. If you checked and they are fine (an effect on purpose, for example), render anyway.</p></div>
+    <div class="df"><button class="btn" id="apAny">Render final anyway</button><button class="btn primary" data-close autofocus>Go back</button></div>`,
+    d => $("#apAny", d).onclick = () => { dlg.close(); approveNow(p.name); });
 }
 
 function redoDialog() {
@@ -534,6 +583,8 @@ function settingsDialog() {
       <div class="row" style="margin-top:6px"><span class="quiet grow">You have Vizavi Studio ${esc(S.meta.version || "?")}</span>
       <button class="btn small" id="cuNow">Check now</button>${S.meta.can_undo_update ? `<button class="btn small" id="cuUndo">Undo last update</button>` : ""}</div></div></div>
     <div class="fs"><h3>Saved styles<small>Made with “Save as style…” on a project page.</small></h3><div id="stList">${styleList()}</div></div>
+    <div class="fs"><h3>Recently deleted<small>Deleted projects and styles stay here for ${S.meta.trash_days || 30} days.</small></h3><div><div id="trList">${trashList()}</div>
+      <div class="row" style="margin-top:6px"><span class="quiet grow">A small backup of your styles and project texts is made every day.</span><button class="btn small" id="bkOpen">Open backups</button></div></div></div>
     <div class="fs"><h3>Behaviour</h3><div>
       <label class="chk sw"><input type="checkbox" id="w" ${s.watch_downloads ? "checked" : ""}>Pick up Claude's zips from Downloads</label>
       <label class="chk sw"><input type="checkbox" id="pt" ${s.precise_timing ? "checked" : ""}>Precise word timing (MMS, non-commercial)</label></div></div>
@@ -564,6 +615,19 @@ function settingsDialog() {
       try { await api("/api/act", { action: "delete_style", id: b.dataset.delstyle }); S.meta = await api("/api/meta"); $("#stList").innerHTML = styleList(); toast("Style deleted", "info", 2500); }
       catch (err) { toast(err.message, "error"); }
     };
+    $("#trList", d).onclick = async e => {
+      const b = e.target.closest("[data-tr]"); if (!b) return;
+      const purge = b.dataset.how === "purge";
+      if (purge && !b.dataset.sure) { b.dataset.sure = "1"; b.textContent = "Sure? Click again"; return; }
+      b.disabled = true;
+      try {
+        const r = await api("/api/act", { action: purge ? "purge_deleted" : "restore_deleted", id: b.dataset.tr });
+        S.meta = await api("/api/meta"); $("#trList").innerHTML = trashList(); $("#stList").innerHTML = styleList();
+        if (purge) toast("Removed for good", "info", 2500);
+        else { toast(r.kind === "project" ? `Restored project “${r.name}”` : `Restored style “${r.name}”`, "done", 4000); if (r.kind === "project") loadProjects().catch(() => {}); }
+      } catch (err) { b.disabled = false; toast(err.message, "error"); }
+    };
+    $("#bkOpen", d).onclick = () => act("open_backups", {}, null);
     $("#rc", d).onclick = async () => { const r = await act("recheck", {}, null); if (r) toast("Checking components – see the log", "info", 3000); };
     $("#sv", d).onclick = async () => {
       $("#sv").disabled = true; $("#seterr").textContent = "";
@@ -576,6 +640,12 @@ function settingsDialog() {
   });
 }
 
+function trashList() {
+  const L = (S.meta && S.meta.trash) || [];
+  return L.length ? L.map(t => `<div class="strow"><span class="grow"><b>${esc(t.name)}</b><small class="quiet"> ${t.kind === "style" ? "style" : "project"} · deleted ${esc(t.deleted)} · ${t.days_left} day${t.days_left === 1 ? "" : "s"} left</small></span>
+      <button class="btn small" data-tr="${esc(t.id)}" data-how="restore">Restore</button><button class="btn small danger" data-tr="${esc(t.id)}" data-how="purge">Delete for good</button></div>`).join("")
+    : `<p class="quiet">Nothing here.</p>`;
+}
 function styleList() {
   const L = (S.meta && S.meta.saved_styles) || [];
   return L.length ? L.map(s => `<div class="strow">${s.thumb ? `<img class="sref" src="/style_thumb?id=${encodeURIComponent(s.id)}" alt="">` : ""}
@@ -612,7 +682,7 @@ async function newProject(prefill = {}) {
   });
 }
 
-const TEXTF = ["name", "wants", "care", "purpose", "script"];
+const TEXTF = ["name", "wants", "care", "purpose", "believe", "script"];
 function typedText() {      // only what you typed yourself survives a change of preset
   const keep = {};
   for (const id of TEXTF) { const el = $("#" + id); if (el && el.dataset.dirty) keep[id] = el.value; }
@@ -621,7 +691,7 @@ function typedText() {      // only what you typed yourself survives a change of
 }
 async function fillForm(o, preset, keep = {}) {
   const M = S.meta, sizeKey = Object.entries(M.sizes).find(([k, v]) => v[0] === o.size[0] && v[1] === o.size[1])?.[0] || "custom";
-  for (const k of ["name", "wants", "care", "purpose"]) if (keep[k] !== undefined) o[k] = keep[k];
+  for (const k of ["name", "wants", "care", "purpose", "believe"]) if (keep[k] !== undefined) o[k] = keep[k];
   const name = o.name || (NP.narration ? base(NP.narration).replace(/\.[^.]+$/, "") : "");
   $("#npb").innerHTML = `
   <div class="fs"><h3>Start from<small>A preset fills everything below; change what you like.</small></h3><div class="fg">
@@ -637,6 +707,8 @@ async function fillForm(o, preset, keep = {}) {
   <div class="fs"><h3>Your words<small>Take care of is binding: Claude must tick off every item.</small></h3><div class="fg">
     <label class="f s3"><span>What I want</span><textarea id="wants" rows="3" placeholder="Story, mood, must-show moments, references">${esc(o.wants || "")}</textarea></label>
     <label class="f s3"><span>Take care of</span><textarea id="care" rows="2" placeholder="Must-haves and must-nots, accuracy, pitfalls">${esc(o.care || "")}</textarea></label>
+    <label class="f s2"><span>After watching, viewers should believe…</span><input type="text" id="believe" value="${esc(o.believe || "")}" placeholder="One plain sentence, e.g. “a black hole would stretch Earth before swallowing it”"></label>
+    <label class="f"><span>Kind of video</span><select id="kind">${opt(S.meta.kinds || { auto: "Let Claude decide" }, o.kind || "auto")}</select></label>
     <label class="f s3"><span>Script (recommended – exact spelling for captions)</span><textarea id="script" rows="3">${esc(NP.script)}</textarea></label></div></div>
   <div class="fs"><h3>Format</h3><div class="fg">
     <label class="f"><span>Size</span><select id="size">${optl(Object.keys(M.sizes), sizeKey, nice)}<option value="custom" ${sizeKey === "custom" ? "selected" : ""}>Custom</option></select></label>
@@ -711,7 +783,7 @@ function readForm() {
     language: q("#lang"), captions: q("#caps"), safe_area: q("#safe"), text_amount: q("#tamt"),
     formats: [...document.querySelectorAll(".fmt:checked")].map(x => x.value), alpha: $("#alpha").checked,
     engine: q("#eng"), review: q("#rev"), style_preset: q("#sty"), brand: q("#brand"), style: q("#snotes"),
-    purpose: q("#purpose"), wants: q("#wants"), care: q("#care"),
+    purpose: q("#purpose"), wants: q("#wants"), care: q("#care"), believe: q("#believe").trim(), kind: q("#kind"),
     style_ref: q("#sref") || "", style_ref_name: ((S.meta.saved_styles || []).find(x => x.id === q("#sref")) || {}).name || "",
     standing_rules: S.meta.settings.standing_rules || "",
   };

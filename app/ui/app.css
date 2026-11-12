@@ -413,3 +413,18 @@ pre.notes-text { white-space: pre-wrap; font: 14px/1.5 var(--font); margin: 0; }
 #updBar:not([hidden]) ~ #toasts { top: 74px; }
 
 .hw.where li { word-break: break-all; }
+
+/* ranked findings */
+.pill.rk { margin-left: 6px; }
+.rk.P0 { background: color-mix(in srgb, var(--red) 24%, transparent); color: var(--red); }
+.rk.P1 { background: color-mix(in srgb, var(--orange) 22%, transparent); color: var(--orange); }
+.rk.P2 { background: color-mix(in srgb, var(--cyan) 18%, transparent); color: var(--cyan); }
+.rk.P3 { background: var(--fill); color: var(--label2); }
+ul.issues { list-style: none; padding: 0; margin: 6px 0 0; }
+ul.issues li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; line-height: 1.35; }
+ul.issues .rk { flex: none; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: var(--r-ctl); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.chip { font: inherit; font-size: 12.5px; padding: 4px 11px; border-radius: var(--r-ctl); border: 0; cursor: pointer;
+  background: var(--glass2); color: var(--label); box-shadow: inset 0 0 0 .5px var(--sep); }
+.chip:hover { background: var(--glass3); }
+.chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
