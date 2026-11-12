@@ -1,5 +1,5 @@
 {
-"version": "2.2.2",
+"version": "2.3.0",
 "files": [
 "README.md",
 "Start Vizavi Studio (if double-click does nothing).bat",
@@ -33,6 +33,7 @@
 "claude/tools/vizavi_pack.py",
 "claude/tools/vz_align.py",
 "claude/tools/vz_analysis.py",
+"claude/tools/vz_checks.py",
 "kit/KIT.md",
 "kit/backend.py",
 "kit/check.py",
@@ -72,6 +73,7 @@
 "studio/server.py",
 "studio/status.py",
 "studio/transcribe.py",
+"studio/trash.py",
 "studio/update.py",
 "studio/version.py",
 "studio/vizavi.ico",
