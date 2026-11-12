@@ -431,11 +431,21 @@ def watcher():
         time.sleep(3)
 
 
+IDLE_EXIT_S = 15 * 60
+
+
 def idle_exit():
-    """quit when no window has been open for a while and nothing is running"""
+    """quit when no window has been open for a while and nothing is running.
+    A PC that slept (or a window the browser froze while minimised) is not 'no window': after a sleep the clock
+    jumps, so the wait starts again instead of quitting under a window that is about to wake up."""
+    last = time.time()
     while True:
         time.sleep(10)
-        if time.time() - ST.last_seen > 300 and not ST.busy and ST.jobs.empty():
+        now = time.time()
+        if now - last > 60:                  # we were asleep: give the windows time to poll again
+            ST.last_seen = now
+        last = now
+        if now - ST.last_seen > IDLE_EXIT_S and not ST.busy and ST.jobs.empty():
             write_alive()
             os._exit(0)
 
@@ -1232,7 +1242,24 @@ def read_token():
         return ""
 
 
+TOKEN_MAX_AGE = 30 * 86400
+
+
+def reuse_token():
+    """keep the last run's token (rotated monthly): a window still open from before a restart keeps working
+    instead of showing 'out of date'. The token only has to stay unknown to web pages, and it lives in this file anyway."""
+    try:
+        t = TOKEN_FILE.read_text(encoding="utf-8").strip()
+        if re.fullmatch(r"[A-Za-z0-9_\-]{24,64}", t) and time.time() - TOKEN_FILE.stat().st_mtime < TOKEN_MAX_AGE:
+            return t
+    except OSError:
+        pass
+    return ""
+
+
 def write_token():
+    if read_token() == ST.token:            # unchanged: keep the file's date, it tells the token's age
+        return
     try:
         TOKEN_FILE.write_text(ST.token, encoding="utf-8")
         try:
@@ -1283,10 +1310,11 @@ def main(argv, open_ui=True):
         argv = [a for a in argv if a != "--no-window"]
         open_ui = False
     tok = os.environ.pop("VZ_TOKEN", "")
-    if tok:
-        ST.token = tok
     if already_running(argv):
         return
+    tok = tok or reuse_token()
+    if tok:
+        ST.token = tok
     ST.pending = [str(Path(p).resolve()) for p in argv]
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)

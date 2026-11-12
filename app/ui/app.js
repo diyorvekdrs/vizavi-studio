@@ -38,13 +38,19 @@ async function startUpdate() {
 function engineGone() {
   if (S.dead) return;
   S.dead = true; $("#dead").hidden = false;
+  // a newer window of this app shares our cookies: once it (or a restart with the same token) lets us in, carry on
+  const retry = async () => {
+    try { const r = await fetch("/api/poll?since=0"); if (r.ok) return location.reload(); } catch {}
+    setTimeout(retry, 3000);
+  };
+  setTimeout(retry, 3000);
 }
 async function api(path, body) {
   let r;
   try { r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
   catch { throw new Error("Vizavi Studio is not responding"); }
   const j = await r.json().catch(() => ({}));
-  if (r.status === 401) { engineGone(); throw new Error("This window is out of date – reopen Vizavi Studio"); }
+  if (r.status === 401) { engineGone(); throw new Error("Vizavi Studio was restarted – reconnecting…"); }
   if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
   return j;
 }
