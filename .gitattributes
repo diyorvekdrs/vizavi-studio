@@ -5,3 +5,9 @@ tests/ export-ignore
 .github/ export-ignore
 # maintainer tools (publishing) are not part of the download
 dev/ export-ignore
+# repository-only files: not needed in the installer zip (it has READ ME FIRST.txt and Install Vizavi Studio.cmd)
+.gitattributes export-ignore
+.gitignore export-ignore
+README.md export-ignore
+get.ps1 export-ignore
+Vizavi-Studio-Installer.cmd export-ignore
