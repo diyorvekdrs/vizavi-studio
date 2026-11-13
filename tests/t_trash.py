@@ -88,6 +88,15 @@ with _z.ZipFile(zp, "w") as z:
 check("zip for an unknown project explained", "isn't on this PC" in (_c.zip_project_problem(S2, {"episode": "nobody"}, zp) or ""))
 check("existing project accepted", _c.zip_project_problem(S2, {"episode": "alpha"}, zp) is None)
 
+# a new final keeps the previous one
+pk = _c.Project(mkproj("kappa"))
+pk.output.mkdir(exist_ok=True)
+(pk.output / "kappa.mp4").write_bytes(b"old final"); (pk.output / "kappa__preview_v1.mp4").write_bytes(b"p")
+_c.keep_earlier_finals(pk, _Ctx())
+kept = list((pk.output / "earlier finals").glob("*/kappa.mp4"))
+check("previous final kept aside", len(kept) == 1 and kept[0].read_bytes() == b"old final" and not (pk.output / "kappa.mp4").exists())
+check("previews stay", (pk.output / "kappa__preview_v1.mp4").exists())
+
 # backups
 out = TR.daily_backup(S, latest_code=lambda d: d / "work" / "preview_v1" if (d / "work" / "preview_v1").exists() else None)
 names = zipfile.ZipFile(out).namelist() if out else []

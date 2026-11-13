@@ -1980,6 +1980,22 @@ def final_variants(pr, o):
     return out
 
 
+def keep_earlier_finals(pr, ctx):
+    """a new final never overwrites the last one: earlier final files move to output/earlier finals/<date time>/"""
+    old = [f for f in pr.output.iterdir() if (f.is_file() and "__preview_v" not in f.name)
+           or (f.is_dir() and f.name.endswith("__png"))] if pr.output.exists() else []
+    if not old:
+        return
+    dest = pr.output / "earlier finals" / time.strftime("%Y-%m-%d %H-%M")
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in old:
+        try:
+            shutil.move(str(f), str(dest / f.name))
+        except OSError as e:
+            ctx.log(f"(couldn't keep {f.name} aside: {e})")
+    ctx.log(f"The previous final is kept in output/earlier finals/{dest.name}/")
+
+
 def render_final(pr, wd, ver, S, ctx):
     t0 = time.time()
     o = pr.order
@@ -1999,6 +2015,7 @@ def render_final(pr, wd, ver, S, ctx):
     from . import media
     dur = meta["nfr"] / meta["fps"]
     media.build_audio(wd, o, pr.narration(), pr.music(), dur, wd / "final_audio.wav")
+    keep_earlier_finals(pr, ctx)
     outputs = []
     span = 0.9 / len(vs)
     for k, v in enumerate(vs):
