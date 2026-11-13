@@ -1194,6 +1194,9 @@ class H(BaseHTTPRequestHandler):
                     if man["kind"] in ("request", "review", "error"):
                         return self.send_json({"error": f"{Path(z).name} is a package FOR Claude – drag it into the "
                                                          "Claude chat instead."}, 400)
+                    why = core.zip_project_problem(S, man, z)
+                    if why:
+                        return self.send_json({"error": why}, 400)
                     items.append((z, man))
                 started = 0
                 for z, man in items:

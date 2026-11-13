@@ -66,6 +66,28 @@ check("migrated style restores to its folder", name == "Englify" and (P / "_styl
 TR.purge(S, TR.to_trash(mkproj("gamma"), S, "project", "gamma").name)
 check("purge for good", not any("gamma" in e["name"] for e in TR.list_trash(S)))
 
+# a zip from Claude for a deleted project is refused (no empty copy is built), with the way back
+from studio import core as _c
+S2 = dict(_c.load_settings.__globals__["DEFAULTS"], projects_dir=S["projects_dir"])
+zp = tmp / "beta__final_v2.zip"
+import zipfile as _z
+with _z.ZipFile(zp, "w") as z:
+    z.writestr("vizavi.json", json.dumps({"app": "vizavi-studio", "kind": "final", "episode": "zeta", "version": 2}))
+    z.writestr("episode/project.json", "{}")
+TR.to_trash(mkproj("zeta"), S, "project", "zeta")
+class _Ctx:
+    def log(self, *a): pass
+    def progress(self, *a, **k): pass
+try:
+    _c.process_zip(zp, S2, _Ctx()); check("zip for a deleted project refused", False)
+except _c.UserMessage as e:
+    check("zip for a deleted project refused", "Recently deleted" in str(e), str(e))
+check("no empty copy built", not (P / "zeta").exists())
+with _z.ZipFile(zp, "w") as z:
+    z.writestr("vizavi.json", json.dumps({"app": "vizavi-studio", "kind": "final", "episode": "nobody", "version": 2}))
+check("zip for an unknown project explained", "isn't on this PC" in (_c.zip_project_problem(S2, {"episode": "nobody"}, zp) or ""))
+check("existing project accepted", _c.zip_project_problem(S2, {"episode": "alpha"}, zp) is None)
+
 # backups
 out = TR.daily_backup(S, latest_code=lambda d: d / "work" / "preview_v1" if (d / "work" / "preview_v1").exists() else None)
 names = zipfile.ZipFile(out).namelist() if out else []

@@ -1287,6 +1287,20 @@ def zip_id(path):
     return zip_ids(path)[0]
 
 
+def zip_project_problem(S, man, path):
+    """why Claude's zip can't be rendered here, or None. An empty project is never built around Claude's code:
+    without the voice, the pictures and the transcript the render is broken, and a deleted project would come back
+    as an empty copy next to the real one."""
+    name = safe_name(str(man.get("episode") or ""))
+    if name and project_exists(S, name):
+        return None
+    if name and any(e["kind"] == "project" and safe_name(e["name"]) == name for e in TR.list_trash(S)):
+        return (f"“{name}” is in Recently deleted – restore it first (Settings → Recently deleted), then drop "
+                f"{Path(path).name} again. Its voice, pictures and transcript are in there.")
+    return (f"{Path(path).name} is for a project called “{name}”, which isn't on this PC. Claude's zip only holds "
+            "the code – the project (voice, pictures, transcript) has to be here first.")
+
+
 def process_zip(path, S, ctx):
     path = Path(path)
     man = read_manifest(path)
@@ -1294,7 +1308,10 @@ def process_zip(path, S, ctx):
     if kind in ("request", "review", "error"):
         raise UserMessage(f"{path.name} is a package FOR Claude. Drag it into the Claude chat "
                           f"(the message to paste is on your clipboard).")
-    pr = Project.open(man["episode"], S)
+    problem = zip_project_problem(S, man, path)
+    if problem:
+        raise UserMessage(problem)
+    pr = Project.open(man["episode"], S, create=False)
     try:
         ver = int(man.get("version", 1))
     except (TypeError, ValueError):
