@@ -52,6 +52,15 @@ def _get(url, timeout=20):
     return _retry(once)
 
 
+def app_notes(body):
+    """the release text without its 'how to get it' footer and markdown marks, for the app's What's new"""
+    import re
+    t = body.split("\n---", 1)[0]
+    t = re.sub(r"^#+\s*What's new\s*$", "", t, flags=re.M | re.I)
+    t = re.sub(r"\*\*|__|`", "", t)
+    return t.strip()[:4000]
+
+
 def check(repo, current, api=None):
     """{'current','latest','newer','notes','zip_url','zip_name','size','sums_url','page'} or raises OSError/ValueError"""
     data = json.loads(_get((api or API).format(repo=repo)))
@@ -61,7 +70,7 @@ def check(repo, current, api=None):
     zipa = next((a for a in zips if a.get("name", "").lower().startswith("vizavi-studio-")), zips[0] if zips else None)
     sums = assets.get("SHA256SUMS.txt")
     return {"current": current, "latest": tag.lstrip("vV"), "newer": bool(zipa) and newer(tag, current),
-            "notes": (data.get("body") or "").strip()[:4000], "page": data.get("html_url"),
+            "notes": app_notes(data.get("body") or ""), "page": data.get("html_url"),
             "zip_url": zipa and zipa.get("browser_download_url"), "zip_name": zipa and zipa.get("name"),
             "size": zipa and zipa.get("size"), "sums_url": sums and sums.get("browser_download_url")}
 

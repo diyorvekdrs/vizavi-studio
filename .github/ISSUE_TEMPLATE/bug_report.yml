@@ -1,0 +1,36 @@
+name: Something doesn't work
+description: Tell us what went wrong in Vizavi Studio
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks! A short description and the log help most. Please don't paste private files or recordings.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings → Updates shows it (e.g. 2.4.5)
+      placeholder: "2.4.5"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Click **Log** (bottom right of the window) and copy the last lines.
+      render: text
+  - type: dropdown
+    id: pc
+    attributes:
+      label: Graphics card
+      options:
+        - NVIDIA
+        - Other / none
+        - Not sure

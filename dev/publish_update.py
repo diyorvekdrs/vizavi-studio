@@ -1,6 +1,6 @@
-"""Publish a new Vizavi Studio version for everyone who uses it (run from the "Publish update" shortcut).
+"""Publish a new Vizavi Studio version for everyone who uses it (maintainer only - run dev/Publish update.cmd).
 
-  py app/setup/publish_update.py [patch|minor|major|X.Y.Z] --notes "what's new"
+  py dev/publish_update.py [patch|minor|major|X.Y.Z] --notes "what's new"
 
 1. writes the new version into studio/version.py and the file list into app/release.json
 2. commits everything the repository tracks (.gitignore decides – settings, projects, models and your own
@@ -10,7 +10,7 @@
 import argparse, hashlib, json, re, subprocess, sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]          # C:\Vizavi Studio (the repository)
+ROOT = Path(__file__).resolve().parents[1]          # C:\Vizavi Studio (the repository)
 APP = ROOT / "app"
 VFILE = APP / "studio" / "version.py"
 
@@ -21,6 +21,17 @@ def run(*cmd, capture=False):
     if r.returncode != 0:
         sys.exit(f"\nStopped: {' '.join(cmd[:2])} failed.\n{(r.stderr or '') if capture else ''}")
     return (r.stdout or "").strip() if capture else ""
+
+
+def release_body(notes, repo):
+    """the release page text: what's new first (the app's "What's new" shows it too), then how to get it"""
+    lines = [l.strip() for l in re.split(r"(?<=[.!])\s+(?=[A-Z])|;\s+|\n", notes) if l.strip()]
+    whats_new = "\n".join(f"- {l}" for l in lines) if len(lines) > 1 else notes
+    return (f"## What's new\n\n{whats_new}\n\n---\n\n"
+            "**Already using Vizavi Studio?** The app shows *Update available* at the top – click **Update now**.\n\n"
+            f"**New here?** Download [Vizavi-Studio-Installer.cmd](https://github.com/{repo}/releases/latest/download/"
+            "Vizavi-Studio-Installer.cmd) and double-click it. "
+            f"[Install guide](https://github.com/{repo}#-install)")
 
 
 def bump(cur, how):
@@ -82,7 +93,7 @@ def main():
     quick = ROOT / "Vizavi-Studio-Installer.cmd"      # the one-small-file installer (always fetches the newest)
     run("gh", "release", "create", f"v{new}", str(dist / zname), str(stable), str(dist / "SHA256SUMS.txt"),
         *([str(quick)] if quick.exists() else []),
-        "--repo", repo, "--title", f"Vizavi Studio {new}", "--notes", notes)
+        "--repo", repo, "--title", f"Vizavi Studio {new}", "--notes", release_body(notes, repo))
     print(f"\nDone. Vizavi Studio {new} is published: https://github.com/{repo}/releases/tag/v{new}")
     print("Friends' apps show 'Update available' (at their next start, or Settings -> Check now).")
 

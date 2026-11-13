@@ -1,5 +1,5 @@
 {
-"version": "2.4.5",
+"version": "2.4.6",
 "files": [
 "README.md",
 "Start Vizavi Studio (if double-click does nothing).bat",
@@ -61,7 +61,6 @@
 "library/example_html_short/words.js",
 "release.json",
 "setup/install.ps1",
-"setup/publish_update.py",
 "setup/uninstall.ps1",
 "studio/__init__.py",
 "studio/align.py",

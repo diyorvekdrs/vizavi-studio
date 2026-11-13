@@ -3,3 +3,5 @@ docs/ export-ignore
 # tests and the CI setup are for development - keep them out of the download
 tests/ export-ignore
 .github/ export-ignore
+# maintainer tools (publishing) are not part of the download
+dev/ export-ignore
