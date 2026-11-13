@@ -74,6 +74,9 @@ class Ctx:
     def log(self, s):
         ST.log(s)
 
+    def toast(self, kind, text):
+        ST.toast(kind, text)
+
     def progress(self, frac=None, label=None, detail=None, until=None, eta=None):
         ST.tr.update(frac=frac, label=label, detail=detail, until=until, eta=eta)
         if label:
@@ -485,6 +488,7 @@ def project_json(pr, full=False):
     o = pr.order
     vs = core.OD.variants(o)
     out.update(size=f"{vs[0]['w']}×{vs[0]['h']}", fps=o["fps"], variants=[v["id"] for v in vs], formats=o["formats"],
+               order_size=list(o["size"]), order_variants=list(o.get("variants") or []), audio_export=o["audio"].get("export"),
                words=st.get("words"), transcriber=st.get("transcriber"), timing=st.get("timing"),
                transcript_source=st.get("transcript_source"),
                last_kind=st.get("last_kind"), last_zip=Path(st["last_zip"]).name if st.get("last_zip") else None,
@@ -797,7 +801,7 @@ def act(a):
         queue_job("Check components", recheck, key="recheck")
         return {}
     if kind not in ("approve", "retry", "add_assets", "redo", "notes", "save_notes", "delete", "open_folder",
-                    "reveal_zip", "open_file", "reveal_output", "set_final_size", "save_style"):
+                    "reveal_zip", "open_file", "reveal_output", "set_final_size", "save_style", "set_order"):
         raise core.UserMessage("Unknown action.")
     pr = need_project(a)
     if kind == "approve":
@@ -823,6 +827,11 @@ def act(a):
         info = core.save_style(pr, str(a.get("style_name") or ""), str(a.get("note") or ""), S, CTX)
         ST.version += 1
         return {"style": {k: info[k] for k in ("id", "name")}}
+    elif kind == "set_order":                        # size / extra versions / sound / fps after the project was made
+        idle_project(pr, "change the size or sound")
+        said = core.change_order(pr, {k: a.get(k) for k in core.ORDER_CHANGE_KEYS}, CTX, who="you")
+        ST.version += 1
+        return {"changed": said}
     elif kind == "set_final_size":                   # longest side of the final video; 0 = as ordered
         try:
             n = int(a.get("value") or 0)

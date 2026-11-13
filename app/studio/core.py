@@ -1301,6 +1301,80 @@ def zip_project_problem(S, man, path):
             "the code – the project (voice, pictures, transcript) has to be here first.")
 
 
+ORDER_CHANGE_KEYS = ("size", "variants", "audio_export", "fps")
+
+
+def change_order(pr, ch, ctx=None, who="you"):
+    """change what the final is made as: main size, extra versions, sound in the export, frame rate. Used by the
+    project page and by Claude (a zip's vizavi.json "order_changes", when the user asked for it in the notes).
+    Returns the list of changes in words; raises UserMessage for values that can't be used."""
+    if not isinstance(ch, dict):
+        raise UserMessage("No changes given.")
+    o = pr.order
+    said = []
+    if ch.get("size") is not None:
+        try:
+            w, h = (int(x) for x in ch["size"][:2])
+        except (TypeError, ValueError):
+            raise UserMessage("Size must be width and height.")
+        w, h = OD.even(w), OD.even(h)
+        if not (64 <= w <= 8192 and 64 <= h <= 8192):
+            raise UserMessage(f"Size {w}×{h} is not usable.")
+        if [w, h] != list(o["size"]):
+            said.append(f"size {o['size'][0]}×{o['size'][1]} → {w}×{h}")
+            o["size"] = [w, h]
+    if ch.get("variants") is not None:
+        vs = [v for v in ch["variants"] if isinstance(v, str) and v in OD.EXTRA_VARIANTS]
+        if sorted(vs) != sorted(o.get("variants") or []):
+            said.append("also as: " + (", ".join(vs) or "nothing else"))
+            o["variants"] = vs
+    if ch.get("audio_export") is not None:
+        a = str(ch["audio_export"])
+        if a not in OD.AUDIO_EXPORT:
+            raise UserMessage(f"Unknown sound choice “{a}”.")
+        if a != o["audio"].get("export"):
+            said.append(f"sound: {OD.AUDIO_EXPORT[a]}")
+            o["audio"]["export"] = a
+    if ch.get("fps") is not None:
+        try:
+            f = float(ch["fps"])
+        except (TypeError, ValueError):
+            raise UserMessage("Frame rate must be a number.")
+        if not 1 <= f <= 120:
+            raise UserMessage(f"Frame rate {f:g} is not usable.")
+        f = int(f) if f == int(f) else f
+        if f != o["fps"]:
+            said.append(f"{o['fps']} → {f} fps")
+            o["fps"] = f
+    if said:
+        (pr.src / "order.json").write_text(json.dumps(o, indent=1, ensure_ascii=False), encoding="utf-8")
+        pr.state["final_long_side"] = None           # a new shape: the old "Final size" choice no longer fits
+        pr.save()
+        if ctx:
+            ctx.log(f"Order of “{pr.name}” changed by {who}: " + "; ".join(said))
+    return said
+
+
+def size_mismatch(pr, wd):
+    """Claude's design is another shape than anything the final will render (e.g. built 1:1, ordered 9:16)"""
+    try:
+        if (wd / "project.json").exists():
+            pj = json.loads((wd / "project.json").read_text(encoding="utf-8"))
+            if pj.get("responsive"):
+                return None                          # recomposes for any size: nothing to warn about
+            w, h = int(pj["width"]), int(pj["height"])
+        else:
+            return None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    shapes = [v["w"] / v["h"] for v in OD.variants(pr.order)]
+    if any(abs(w / h - s) < 0.01 for s in shapes):
+        return None
+    return (f"Claude built this version as {w}×{h}, but the project is ordered as "
+            f"{', '.join(f'{v['w']}×{v['h']}' for v in OD.variants(pr.order))} – change the size on the project page "
+            "(More → Size and sound…) if that's not what you want.")
+
+
 def process_zip(path, S, ctx):
     path = Path(path)
     man = read_manifest(path)
@@ -1328,6 +1402,17 @@ def process_zip(path, S, ctx):
     install_runtime(pr, wd)
     if man.get("note"):
         ctx.log(f"Claude's note: {man['note']}")
+    if man.get("order_changes"):                    # the user asked Claude for another size / sound in the notes
+        try:
+            said = change_order(pr, {k: man["order_changes"].get(k) for k in ORDER_CHANGE_KEYS}, ctx, who="Claude (your notes)")
+            if said:
+                ctx.toast("info", f"“{pr.name}”: Claude changed the order as you asked – " + "; ".join(said)) \
+                    if hasattr(ctx, "toast") else None
+        except UserMessage as e:
+            ctx.log(f"Claude asked for an order change that can't be used: {e}")
+    warn = size_mismatch(pr, wd)
+    if warn:
+        ctx.log("⚠ " + warn)
     return run_guarded(pr, kind, ver, wd, S, ctx)
 
 

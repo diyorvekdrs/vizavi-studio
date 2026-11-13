@@ -97,6 +97,18 @@ kept = list((pk.output / "earlier finals").glob("*/kappa.mp4"))
 check("previous final kept aside", len(kept) == 1 and kept[0].read_bytes() == b"old final" and not (pk.output / "kappa.mp4").exists())
 check("previews stay", (pk.output / "kappa__preview_v1.mp4").exists())
 
+# changing size / versions / sound after the project was made
+said = _c.change_order(pk, {"size": [1081, 1080], "variants": ["9:16", "bogus"], "audio_export": "music_sfx", "fps": 30})
+ok = _c.Project(pk.root).order
+check("change_order applies and evens the size", ok["size"] == [1080, 1080] and ok["variants"] == ["9:16"]
+      and ok["audio"]["export"] == "music_sfx" and len(said) >= 3, (ok["size"], said))
+check("change_order: nothing new, nothing said", _c.change_order(pk, {"size": [1080, 1080]}) == [])
+for bad in ({"size": [10, 10]}, {"audio_export": "loud"}, {"fps": 500}):
+    try:
+        _c.change_order(pk, bad); check(f"refused {bad}", False)
+    except _c.UserMessage:
+        check(f"refused {bad}", True)
+
 # backups
 out = TR.daily_backup(S, latest_code=lambda d: d / "work" / "preview_v1" if (d / "work" / "preview_v1").exists() else None)
 names = zipfile.ZipFile(out).namelist() if out else []

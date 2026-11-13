@@ -100,6 +100,16 @@ async function until(fn, ms = 6000, step = 80) { const t = Date.now(); while (Da
   click($("#stSave"));
   check("style saved toast", !!(await until(() => [...d.querySelectorAll(".toast")].some(t => /Style “Alpha look” saved/.test(t.textContent)), 4000)));
   check("style listed in meta", !!(await until(() => (w.S ? true : true) && true)));
+  // size and sound after the project was made
+  click($('[data-a="more"]')); await until(() => $(".menu"));
+  click($$(".menu button").find(b => /Size and sound/.test(b.textContent)));
+  check("size and sound dialog", !!(await until(() => $("#osave"), 3000)));
+  $("#osz").value = "1:1, 1080x1080" in ($("#osz").options) ? "1:1, 1080x1080" : $("#osz").value;
+  $("#ow").value = 1080; $("#oh").value = 1080; $("#oaud").value = "music_sfx";
+  click($("#osave"));
+  check("order changed toast", !!(await until(() => [...d.querySelectorAll(".toast")].some(t => /1080×1080/.test(t.textContent) && /next render/.test(t.textContent)), 3000)));
+  const pjS = await (await w.fetch("/api/project?name=alpha")).json();
+  check("order stored", pjS.order_size[0] === 1080 && pjS.order_size[1] === 1080 && pjS.audio_export === "music_sfx", JSON.stringify(pjS.order_size));
   click($$(".proj").find(b => b.dataset.name === "beta")); await until(() => /Stopped/.test($("#view").textContent)); await sleep(800);
   // keyboard menu
   const more = $('[data-a="more"]'); more.focus(); click(more);

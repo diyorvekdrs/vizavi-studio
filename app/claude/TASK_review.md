@@ -30,6 +30,9 @@ Steps:
 4. Fix the causes in `episode/`; improve at least the two weakest beats even if nothing flags them – without
    touching what an ask said to keep. Re-check what changed: `python tools/sandbox_check.py episode --times ...`
 5. Update PLAN.md scores (old → new, incl. 5b) and CHANGES.md (fill "done how" for every ask).
+   If the notes ask for another **size / aspect, extra versions, sound in the export or frame rate**, don't tell
+   the user to change settings: pack with `--size 1080x1080`, `--also 9:16`, `--sound music_sfx`, `--fps 30` – the
+   app changes the order and tells the user (chat mode: the same options on render_preview).
 6. `python tools/vizavi_pack.py --kind final --note "..."` (use `--kind preview` only if the user's notes
    ask for another preview or you made a major rework). Send with SendUserFile; reply in a few lines
    listing what you changed.

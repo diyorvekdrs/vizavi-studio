@@ -422,8 +422,12 @@ def t_render_preview(a):
     outd.mkdir(exist_ok=True)
     for f in outd.glob("*.zip"):
         f.unlink()
+    extra = []
+    for k, flag in (("size", "--size"), ("also", "--also"), ("sound", "--sound"), ("fps", "--fps")):
+        if a.get(k) not in (None, ""):
+            extra += [flag, str(a[k])]
     r = subprocess.run([sys.executable, "tools/vizavi_pack.py", "--kind", a.get("kind") or "preview", "--src",
-                        str(ws / "episode"), "--out", str(outd), "--note", str(a.get("note") or "")],
+                        str(ws / "episode"), "--out", str(outd), "--note", str(a.get("note") or "")] + extra,
                        cwd=str(ws), capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=NOWIN)
     zips = list(outd.glob("*.zip"))
     if r.returncode or not zips:
@@ -520,8 +524,14 @@ TOOLS = [
     ("retime", "After writing episode/transcript_clean.txt: put the corrected words on the audio timing (tools/retime.py).",
      {}, ["project"], t_retime),
     ("render_preview", "Send episode/ to Vizavi Studio: it renders the preview (real assets, full checks) as for a zip. "
-     "kind='final' renders the final directly – only when the user asked for it.",
-     {"note": {"type": "string"}, "kind": {"type": "string", "enum": ["preview", "final"]}}, ["project"], t_render_preview),
+     "kind='final' renders the final directly – only when the user asked for it. When the user asked for another "
+     "shape, extra versions or another sound, pass size / also / sound / fps: the app changes the order and tells them.",
+     {"note": {"type": "string"}, "kind": {"type": "string", "enum": ["preview", "final"]},
+      "size": {"type": "string", "description": "new main size WxH – only when the user asked for another shape"},
+      "also": {"type": "string", "description": "extra versions, e.g. '9:16,1:1' ('none' clears)"},
+      "sound": {"type": "string", "enum": ["sfx", "voice_sfx", "voice_music_sfx", "music_sfx", "silent"],
+                "description": "sound in the export – only when the user asked"},
+      "fps": {"type": "number"}}, ["project"], t_render_preview),
     ("status", "Where the project stands in Vizavi Studio; waits up to ~45 s while it renders. When the preview is "
      "ready it includes the review.", {"seconds": {"type": "integer"}}, ["project"], t_status),
     ("review", "The user's notes on the newest preview, the automatic checks (ranked P0–P3) and the preview's frame "

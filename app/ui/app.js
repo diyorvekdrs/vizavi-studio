@@ -462,7 +462,7 @@ $("#view").addEventListener("click", async e => {
     return menu(r.left, r.bottom + 4, [["Show latest zip", () => act("reveal_zip")],
       ...(p.retry ? [[`Render again (${p.retry})`, retryRender, "", busy]] : []), ["Add footage / assets…", addAssets, "", busy],
       ...(p.has_code ? [["Save as style…", styleDialog]] : []),
-      ["Redo transcript…", redoDialog, "", busy], ["Delete project…", deleteDialog, "danger", busy]]);
+      ["Size and sound…", orderDialog, "", busy], ["Redo transcript…", redoDialog, "", busy], ["Delete project…", deleteDialog, "danger", busy]]);
   }
   if (a === "reveal_output") return act("reveal_output", { file: b.dataset.file });
   if (a === "retry") return retryRender();
@@ -546,6 +546,33 @@ function approveDialog(p, bad) {
     <p class="quiet">Sending the review package to Claude fixes them first. If you checked and they are fine (an effect on purpose, for example), render anyway.</p></div>
     <div class="df"><button class="btn" id="apAny">Render final anyway</button><button class="btn primary" data-close autofocus>Go back</button></div>`,
     d => $("#apAny", d).onclick = () => { dlg.close(); approveNow(p.name); });
+}
+
+function orderDialog() {
+  const p = S.cur, M = S.meta; if (!p || !M) return;
+  const [w0, h0] = p.order_size || [1920, 1080];
+  const key = Object.entries(M.sizes).find(([k, v]) => v[0] === w0 && v[1] === h0)?.[0] || "custom";
+  openDialog(`<div class="dh"><h2>Size and sound</h2><button class="link" data-close>Close</button></div>
+    <div class="db"><p class="quiet" style="margin-top:0">What the final of “${esc(p.name)}” is made as. Claude's code is not changed – if the
+      new shape needs another layout, write it in the notes for Claude. Takes effect with the next render.</p>
+    <div class="fg">
+      <label class="f"><span>Size</span><select id="osz">${optl(Object.keys(M.sizes), key, nice)}<option value="custom" ${key === "custom" ? "selected" : ""}>Custom</option></select></label>
+      <label class="f"><span>Width × height</span><span class="row" style="flex-wrap:nowrap"><input type="number" id="ow" value="${w0}" step="2" min="64" aria-label="Width"><input type="number" id="oh" value="${h0}" step="2" min="64" aria-label="Height"></span></label>
+      <label class="f"><span>Frame rate</span><select id="ofps">${optl(M.fps, p.fps)}</select></label>
+      <div class="f s3"><span>Also deliver as</span><div class="togs">${M.extra_variants.map(v => `<label class="chk tog"><input type="checkbox" class="ovar" value="${v}" ${(p.order_variants || []).includes(v) ? "checked" : ""}>${v}</label>`).join("")}</div></div>
+      <label class="f s3"><span>Sound in the video</span><select id="oaud">${opt(M.audio_export, p.audio_export)}</select></label></div></div>
+    <div class="df"><span class="err grow" id="oerr"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="osave">Save</button></div>`, d => {
+    $("#osz", d).onchange = e => { const v = M.sizes[e.target.value]; if (v) { $("#ow").value = v[0]; $("#oh").value = v[1]; } };
+    $("#osave", d).onclick = async () => {
+      try {
+        const r = await api("/api/act", { action: "set_order", name: p.name, size: [+$("#ow").value, +$("#oh").value], fps: +$("#ofps").value,
+          variants: [...d.querySelectorAll(".ovar:checked")].map(x => x.value), audio_export: $("#oaud").value });
+        dlg.close();
+        toast(r.changed && r.changed.length ? `Changed: ${r.changed.join("; ")} – it applies to the next render` : "Nothing changed", "info", 6000);
+        S.viewSig = ""; await loadProject(p.name).catch(() => {});
+      } catch (e) { $("#oerr").textContent = e.message; }
+    };
+  });
 }
 
 function redoDialog() {

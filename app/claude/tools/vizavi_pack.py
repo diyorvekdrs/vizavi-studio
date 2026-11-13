@@ -2,6 +2,9 @@
   python tools/vizavi_pack.py --kind preview      # user's app renders a 960px preview and sends it back
   python tools/vizavi_pack.py --kind final        # user's app renders the 2K final
 Optional: --src episode  --out <dir>  --note "one line about this version"
+When the user's notes ask for another shape or sound, change the order with the zip (the app applies it and tells the user):
+  --size 1080x1080   main size      --also 9:16,1:1   extra versions (16:9 9:16 1:1 4:5, "none" = no extra)
+  --sound music_sfx  sound in the export (sfx | voice_sfx | voice_music_sfx | music_sfx | silent)   --fps 30
 Writes <episode>__<kind>_v<N>.zip (N comes from vizavi.json) and prints its path."""
 import argparse, ast, json, re, sys, time, zipfile
 from pathlib import Path
@@ -36,6 +39,10 @@ def main():
     ap.add_argument("--src", default=str(ROOT / "episode"))
     ap.add_argument("--out", default="/mnt/user-data/outputs" if Path("/mnt/user-data/outputs").exists() else str(ROOT))
     ap.add_argument("--note", default="")
+    ap.add_argument("--size", default="", help="new main size WxH (only when the user asked)")
+    ap.add_argument("--also", default="", help="extra versions, e.g. 9:16,1:1 ('none' clears them)")
+    ap.add_argument("--sound", default="", help="sound in the export: sfx|voice_sfx|voice_music_sfx|music_sfx|silent")
+    ap.add_argument("--fps", default="")
     a = ap.parse_args()
     man = json.loads((ROOT / "vizavi.json").read_text(encoding="utf-8"))
     ep = man["episode"]
@@ -100,13 +107,33 @@ def main():
     zp = Path(a.out) / f"{ep}__{a.kind}_v{ver}.zip"
     info = {"app": "vizavi-studio", "kind": a.kind, "episode": ep, "project": ep, "version": ver,
             "created": time.strftime("%Y-%m-%d %H:%M:%S"), "made_by": "claude", "note": a.note}
+    ch = {}
+    if a.size:
+        try:
+            ch["size"] = [int(x) for x in a.size.lower().split("x")]
+        except ValueError:
+            print("NOT PACKED: --size wants WxH, e.g. 1080x1080"); return 1
+    if a.also:
+        ch["variants"] = [] if a.also.strip().lower() == "none" else [v.strip() for v in a.also.split(",") if v.strip()]
+        bad = [v for v in ch["variants"] if v not in ("16:9", "9:16", "1:1", "4:5")]
+        if bad:
+            print("NOT PACKED: --also takes 16:9, 9:16, 1:1, 4:5 – not " + ", ".join(bad)); return 1
+    if a.sound:
+        if a.sound not in ("sfx", "voice_sfx", "voice_music_sfx", "music_sfx", "silent"):
+            print("NOT PACKED: --sound takes sfx, voice_sfx, voice_music_sfx, music_sfx or silent"); return 1
+        ch["audio_export"] = a.sound
+    if a.fps:
+        ch["fps"] = float(a.fps)
+    if ch:
+        info["order_changes"] = ch
     total = 0
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("vizavi.json", json.dumps(info, indent=1, ensure_ascii=False))
         for p, rel in files:
             z.write(p, "episode/" + rel.as_posix())
             total += p.stat().st_size
-    print(f"packed {len(files)} files ({total / 1e6:.2f} MB raw) -> {zp}")
+    print(f"packed {len(files)} files ({total / 1e6:.2f} MB raw) -> {zp}"
+          + (f"\norder change for the app: {json.dumps(ch)}" if ch else ""))
     print("deliver it with SendUserFile; the user drops it into Vizavi Studio.")
     return 0
 

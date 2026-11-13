@@ -148,8 +148,16 @@ if HAVE_PW:
     e, t, imgs = tool("review", project="demo")
     check("review has the user's notes", not e and "Make the yellow box bigger" in t and (ws / "review" / "report.md").exists(), t[:800])
     e, t, _ = tool("open_project", project="demo")
-    e, t, _ = tool("render_preview", project="demo", note="v2")
+    e, t, _ = tool("render_preview", project="demo", note="v2", size="1080x1080", also="9:16", sound="music_sfx")
     check("next version numbered 2", not e and "v2 sent" in t, t)
+    for _ in range(12):
+        e, t, imgs = tool("status", project="demo", seconds=30)
+        if "preview ready" in t and "Preview v2" in t or "problem" in t:
+            break
+    o2 = json.loads((pr.src / "order.json").read_text(encoding="utf-8"))
+    check("Claude's order change applied (size, extra version, sound)", o2["size"] == [1080, 1080] and o2["variants"] == ["9:16"]
+          and o2["audio"]["export"] == "music_sfx", o2.get("size"))
+    check("the change is told in the log", any("changed by Claude" in l[1] for l in server.ST.logs), "")
 else:
     print("(check / render skipped: no Playwright)")
 
