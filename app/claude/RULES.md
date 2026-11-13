@@ -45,7 +45,9 @@ read `input/ASSETS.md`: never ship re-encoded/trimmed/scaled copies of them, dec
 ## Sound
 `audio.py` writes `mix.wav` (48 kHz stereo, exactly NFR/FPS s): **only your ambient bed and SFX**
 (and a synthesized music bed if the spec asks for generated music). Never put the narration or the
-user's music in it – the app mixes those per the spec (ducking, loudness). Keep SFX sparse and
+user's music in it – the app mixes those per the spec (ducking, loudness). audio.py must finish in seconds:
+whole-signal numpy, `scipy.signal.fftconvolve` (not `np.convolve`) for long smoothing windows, no Python loops over
+samples. Keep SFX sparse and
 pleasant, ≥ 12 dB under the voice while it speaks, true peak ≤ −1 dBTP.
 Optional `mix.json` written next to it: `{"music_db": -4, "music_gain_db": [[t, dB], ...],
 "sfx_gain_db": [[t, dB], ...]}` for music level / automation (the app also ducks music under the voice).

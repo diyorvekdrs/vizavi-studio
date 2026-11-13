@@ -7,7 +7,8 @@ import argparse, ast, json, re, sys, time, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-KIT = {"backend.py", "render_all.py", "make_final.py", "check.py", "ff.py", "fakegpu.py", "KIT.md", "vzrender.py", "vz.js"}
+KIT = {"backend.py", "render_all.py", "make_final.py", "check.py", "ff.py", "fakegpu.py", "KIT.md", "vzrender.py", "vz.js",
+       "vzfast.py"}
 SKIP_DIRS = {"__pycache__", "cache", "out", "check", "fonts", "assets", "brand", "input", ".git"}
 SKIP_EXT = {".zip", ".pyc"}
 REQUIRED = ["W", "H", "FPS", "NFR", "set_res", "render_frame", "prepare_assets", "SELFTEST_FRAMES", "SCENES"]

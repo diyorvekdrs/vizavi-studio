@@ -9,7 +9,7 @@ name = sys.argv[2] if len(sys.argv) > 2 else "final_2k_24fps.mp4"
 if not os.path.exists("mix.wav"):
     print("1/2 building sound (ambient + SFX)... (~30 s)", flush=True)
     t = time.time()
-    subprocess.run([sys.executable, "audio.py"], check=True)
+    subprocess.run([sys.executable, "vzfast.py", "audio.py"], check=True)
     print(f"    sound ready in {time.time() - t:.0f}s", flush=True)
 else:
     print("1/2 using existing mix.wav (delete it to rebuild the sound)", flush=True)

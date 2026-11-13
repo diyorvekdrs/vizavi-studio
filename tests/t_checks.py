@@ -79,6 +79,22 @@ check("white on white: contrast 1", m[0]["contrast"] == 1.0, m)
 m = vzrender.measure([{"box": [10, 30, 100, 70], "color": None}], img)
 check("gradient text not judged", "contrast" not in m[0])
 
+# vzfast: np.convolve of long signals via FFT - same numbers, any mode, either order
+import time as _t
+_np_conv = np.convolve
+import vzfast
+rng = np.random.default_rng(1)
+sig = (rng.random(400000) > .5).astype(float); ker = np.ones(3000) / 3000
+for mode in ("full", "same", "valid"):
+    ref = _np_conv(sig, ker, mode); got = np.convolve(sig, ker, mode); rev = np.convolve(ker, sig, mode)
+    check(f"vzfast {mode}", got.shape == ref.shape and np.allclose(got, ref, atol=1e-9)
+          and rev.shape == _np_conv(ker, sig, mode).shape and np.allclose(rev, _np_conv(ker, sig, mode), atol=1e-9))
+check("vzfast keeps small/int convolutions exact", np.array_equal(np.convolve([1, 2, 3], [0, 1, 0.5]), _np_conv([1, 2, 3], [0, 1, 0.5]))
+      and np.convolve(np.arange(10), np.arange(5)).dtype == _np_conv(np.arange(10), np.arange(5)).dtype)
+t0 = _t.time(); np.convolve(np.ones(48000 * 120), np.ones(16800) / 16800, "same"); dt = _t.time() - t0
+check("vzfast: a 2-minute 48 kHz smoothing takes seconds", dt < 5, dt)
+np.convolve = _np_conv
+
 # core: the report wiring
 from studio import core
 tmp = tempfile.mkdtemp()

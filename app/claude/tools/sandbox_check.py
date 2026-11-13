@@ -300,10 +300,14 @@ def main():
 
     if not a.no_audio:
         t1 = time.time()
-        r = subprocess.run([sys.executable, "audio.py"], cwd=ep, capture_output=True, text=True)
+        r = subprocess.run([sys.executable, "vzfast.py", "audio.py"], cwd=ep, capture_output=True, text=True)
         if r.returncode != 0:
             P("ERROR audio.py failed:\n" + r.stderr[-1500:]); return 1
-        P(f"audio.py: {time.time() - t1:.1f}s")
+        ta = time.time() - t1
+        P(f"audio.py: {ta:.1f}s")
+        if ta > 20:
+            P(f"WARNING: audio.py took {ta:.0f}s here - make it fast (whole-signal numpy, scipy.signal.fftconvolve or "
+              "cumsum moving averages, no Python loops over samples): slow sound code stalls the user's render")
         from scipy.io import wavfile
         sr, x = wavfile.read(ep / "mix.wav")
         if sr != 48000 or x.ndim != 2 or x.shape[1] != 2:

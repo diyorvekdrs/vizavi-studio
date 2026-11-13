@@ -21,7 +21,7 @@ IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff", ".svg", 
 VIDEO_EXT = {".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"}
 FONT_EXT = {".ttf", ".otf", ".woff", ".woff2"}
 RUNTIME_FILES = {"backend.py", "render_all.py", "make_final.py", "check.py", "ff.py", "fakegpu.py", "KIT.md",
-                 "vzrender.py", "vz.js"}
+                 "vzrender.py", "vz.js", "vzfast.py"}
 SKIP_DIRS = {"__pycache__", "cache", "out", "check", "fonts", "assets", "brand", "input", ".git"}
 
 DEFAULTS = {
@@ -1617,7 +1617,7 @@ def render_preview(pr, wd, ver, S, ctx):
              "preview render", env=render_env(S, pr), on_line=on_line, logfile=log)
     render_s = time.time() - tr
     ctx.progress(0.72, "Building the sound + mix", until=0.76)
-    run_proc([py_exe(), "audio.py"], wd, ctx, "audio.py", logfile=log)
+    run_proc([py_exe(), "vzfast.py", "audio.py"], wd, ctx, "audio.py", logfile=log)
     if not (wd / "mix.wav").exists():
         raise StepError("audio.py (no mix.wav written)", ["audio.py finished but mix.wav is missing"])
     from . import media
@@ -2011,7 +2011,7 @@ def render_final(pr, wd, ver, S, ctx):
     for f in ("mix.wav",):
         if (wd / f).exists():
             (wd / f).unlink()
-    run_proc([py_exe(), "audio.py"], wd, ctx, "audio.py", logfile=log)
+    run_proc([py_exe(), "vzfast.py", "audio.py"], wd, ctx, "audio.py", logfile=log)
     from . import media
     dur = meta["nfr"] / meta["fps"]
     media.build_audio(wd, o, pr.narration(), pr.music(), dur, wd / "final_audio.wav")
