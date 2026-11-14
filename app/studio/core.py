@@ -646,6 +646,7 @@ def _new_project(o, files, S, ctx, holder):
             continue
         names.append(dst.name)
     names = apply_style_fonts(pr, S, o, names, ctx)
+    names = apply_look_fonts(pr, o, names, ctx)
     o["assets"] = names
     if o.get("brand"):
         info, bfiles = OD.brand_info(o["brand"])
@@ -996,6 +997,38 @@ def apply_style_fonts(pr, S, o, names, ctx):
     return names
 
 
+def apply_look_fonts(pr, o, names, ctx=None):
+    """a signature look's fonts go into the project's assets (Claude's code and the renders load them from there)"""
+    lk = OD.look_of(o)
+    if not lk:
+        return names
+    ad = pr.src / "assets"
+    ad.mkdir(exist_ok=True)
+    for fn in lk.get("fonts", []):
+        f = OD.LOOKS_DIR / "fonts" / fn
+        if f.is_file() and fn not in names and not (ad / fn).exists():
+            shutil.copy2(f, ad / fn)
+            names.append(fn)
+    for lic in {OD.LOOKS_DIR / "fonts" / f"OFL-{fam}.txt" for fam in lk.get("font_families", [])}:
+        if lic.is_file() and not (ad / lic.name).exists():
+            shutil.copy2(lic, ad / lic.name)
+    if ctx and lk.get("fonts"):
+        ctx.log(f"look “{lk['name']}”: {len(lk['fonts'])} font files in assets")
+    return names
+
+
+def look_entries(pr):
+    """LOOK.md + look/ (three frames of it) when the project uses a signature look"""
+    lk = OD.look_of(pr.order)
+    if not lk:
+        return []
+    apply_look_fonts(pr, pr.order, list(pr.order.get("assets") or []))
+    E = [("LOOK.md", OD.LOOKS_DIR / f"{lk['id']}.md")]
+    for f in sorted((OD.LOOKS_DIR / "stills").glob(f"{lk['id']}_*.jpg")):
+        E.append((f"look/{f.name}", f))
+    return E
+
+
 def proxy_assets(pr, tmpdir, ctx):
     """light copies of the user's assets for Claude (same names); the app renders with the originals.
     Converted copies are kept between packages and only redone when the original file changed."""
@@ -1072,6 +1105,7 @@ def common_entries(pr, kind, task_md, next_version, extra_manifest=None, narrati
             E.append((f"input/{f.name}", f))
     if (pr.src / "brand").exists():
         E.append(("input/brand", pr.src / "brand"))
+    E += look_entries(pr)
     if assets and (pr.src / "assets").exists() and any((pr.src / "assets").iterdir()):
         E.append(("input/assets", proxy_assets(pr, pr.work / "_asset_proxies", ctx or Ctx())))
         man = asset_manifest(pr)

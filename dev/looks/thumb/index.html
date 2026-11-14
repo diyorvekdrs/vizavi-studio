@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../fonts.css">
+<style>html,body{margin:0;background:#000} canvas{display:block}</style></head>
+<body><canvas id="c" width="960" height="540"></canvas>
+<script src="lib.js"></script>
+<script src="scenes.js"></script>
+<script>
+const ctx = document.getElementById('c').getContext('2d');
+window.SCENE = null;
+window.load = async id => {
+  window.SCENE = SCENES[id];
+  await Promise.all((SCENE.fonts || []).map(f => document.fonts.load(f, 'Aa ʻ’ Ўў')));
+  await document.fonts.ready;
+  if (SCENE.init) SCENE.init();
+  return SCENE.dur;
+};
+window.renderAt = t => { ctx.save(); ctx.clearRect(0, 0, 960, 540); SCENE.render(ctx, t, 960, 540); ctx.restore(); };
+</script></body></html>

@@ -621,7 +621,7 @@ def meta():
         "formats": OD.FORMATS, "engines": OD.ENGINES, "review": OD.REVIEW, "loudness": OD.LOUDNESS,
         "safe_area": OD.SAFE_AREA, "kinds": OD.KINDS, "langs": OD.LANGS, "styles": list(OD.STYLES), "brands": OD.list_brands(),
         "presets": list(OD.PRESETS) + [k for k in S.get("user_presets", {}) if k not in OD.PRESETS],
-        "preset_cards": preset_cards(S), "style_desc": OD.STYLES,
+        "preset_cards": preset_cards(S), "style_desc": OD.STYLES, "looks": list(OD.looks().values()),
         "saved_styles": core.list_styles(S), "claude_link": claude_link_status(), "trash": TR.list_trash(S), "trash_days": TR.KEEP_DAYS,
         "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),

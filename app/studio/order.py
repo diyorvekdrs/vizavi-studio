@@ -55,6 +55,30 @@ STYLES = {
     "retro_film": "Retro film: warm grade, grain, gate weave, light leaks, vintage type.",
     "custom": "",
 }
+LOOKS_DIR = APP / "claude" / "looks"
+_LOOKS = None
+
+
+def looks():
+    """the signature looks (claude/looks/looks.json): id -> card (name, family, suits, swatch, fonts)"""
+    global _LOOKS
+    if _LOOKS is None:
+        try:
+            data = json.loads((LOOKS_DIR / "looks.json").read_text(encoding="utf-8"))
+            _LOOKS = {c["id"]: c for c in data.get("looks", [])}
+        except (OSError, ValueError):
+            _LOOKS = {}
+    return _LOOKS
+
+
+def look_of(o):
+    """the look card when the order's style is a signature look, else None"""
+    return looks().get(str((o or {}).get("style_preset") or ""))
+
+
+def style_name(key):
+    lk = looks().get(key)
+    return f"{lk['name']} ({lk['family']})" if lk else key.replace("_", " ").capitalize()
 
 
 def base():
@@ -289,7 +313,13 @@ def brief_md(o, words=None, music=None, assets=None):
         left = ", left 5%" if vs[0]["h"] > vs[0]["w"] else ""
         L.append(f"- Keep text/key action out of the {SAFE_AREA[o['safe_area']]} zones "
                  f"(top {t_ * 100:.0f}%, bottom {b_ * 100:.0f}%, right {r_ * 100:.0f}%{left}) – the preview's checks measure it")
-    L += ["", "## Style", STYLES.get(o["style_preset"], ""), o.get("style", "").strip()]
+    lk = look_of(o)
+    if lk:
+        L += ["", "## Style", f"**Look: {lk['name']}** ({lk['family']}) – the user picked it from Vizavi Studio's looks. "
+              "Read LOOK.md and look at look/ first: its palette, type, motion and Never list are binding. "
+              "Build it with the HTML engine; its fonts are in assets/.", o.get("style", "").strip()]
+    else:
+        L += ["", "## Style", STYLES.get(o["style_preset"], ""), o.get("style", "").strip()]
     if o.get("style_ref"):
         L += [f"**Match the user's saved style “{o.get('style_ref_name') or o['style_ref']}”** – read "
               "style_ref/STYLE.md and look at style_ref/stills/ first; it overrides the style preset above."]

@@ -144,5 +144,9 @@ scores (old → new) and CHANGES.md; stop at §8.
 - **Wide, empty frames** with the subject small in the middle; **close-ups with no reason**.
 - **A tour of features / a list of facts** instead of one example followed through.
 - **Copy that sounds like an ad**: buzzwords, "Not X. Y." cadences, slogans, a label above every headline.
+- **Things that make motion look AI-made**: neon glow on a look that isn't built on glow; particle bursts and
+  sparkles; crossfades and dissolves where a shape could change or a hard cut could land; bounce on every element
+  (pick the ONE moment that bounces); camera shake; lens flares; glowing grid floors; text parked in the frame's
+  corners; anything that reads as a template.
 - **Never**: invented facts, numbers, quotes or results; redrawn logos (use the real files); calling it done
   without looking at the stills.

@@ -714,6 +714,8 @@ function styleList() {
 /* ---------- new project ---------- */
 const NP = { narration: null, music: null, assets: [], script: "" };
 const opt = (obj, sel) => Object.entries(obj).map(([k, v]) => `<option value="${esc(k)}" ${k == sel ? "selected" : ""}>${esc(v)}</option>`).join("");
+const LOOK_SRC = "https://ruby-cotija-fb5.notion.site/Animation-styles-you-can-build-with-Claude-or-Codex-3fa28691eca3814ebb34c73a7cc261bf";
+const styleName = k => { const l = ((S.meta && S.meta.looks) || []).find(x => x.id === k); return l ? `${l.name} look` : nice(k); };
 const optl = (arr, sel, label = v => v) => arr.map(v => `<option value="${esc(v)}" ${v == sel ? "selected" : ""}>${esc(label(v))}</option>`).join("");
 const LANG = { uz: "Uzbek", auto: "Detect automatically", en: "English", ru: "Russian", tr: "Turkish", kk: "Kazakh", ky: "Kyrgyz",
   tg: "Tajik", de: "German", fr: "French", es: "Spanish", ar: "Arabic", zh: "Chinese", ja: "Japanese", ko: "Korean" };
@@ -789,7 +791,7 @@ async function fillForm(o, preset, keep = {}) {
   NP.o = o;
   const name = o.name || (NP.narration ? base(NP.narration).replace(/\.[^.]+$/, "") : "");
   const cards = M.preset_cards || {}, rules = (M.settings.standing_rules || "").split("\n").map(x => x.trim()).filter(Boolean);
-  const styles = M.saved_styles || [];
+  const styles = M.saved_styles || [], looks = M.looks || [];
   $("#npb").innerHTML = `
   <section class="npstep" data-step="files">
     <p class="lead">Start with the voice recording – everything is timed to it.</p>
@@ -846,15 +848,21 @@ async function fillForm(o, preset, keep = {}) {
     </details>
   </section>
   <section class="npstep" data-step="look" hidden>
-    <p class="lead">How should it look? Pick a style you saved from an earlier video, or a general style.</p>
+    <p class="lead">How should it look? Pick a look, a style you saved from an earlier video, or a general mood.</p>
     <select id="sref" class="vh" aria-hidden="true" tabindex="-1"><option value="">No – use the style below</option>${styles.map(s => `<option value="${esc(s.id)}" ${s.id === o.style_ref ? "selected" : ""}>${esc(s.name)} (from ${esc(s.source_project)})</option>`).join("")}</select>
     ${styles.length ? `<h3 class="sub">Your saved styles</h3><div class="scards" role="radiogroup" aria-label="Saved style">
       <label class="scard"><input type="radio" name="scard" value="" ${!o.style_ref ? "checked" : ""} data-first><span class="thumb none">—</span><b>None</b><small class="quiet">use a general style</small></label>
       ${styles.map(s => `<label class="scard"><input type="radio" name="scard" value="${esc(s.id)}" ${s.id === o.style_ref ? "checked" : ""}>
         ${s.thumb ? `<img class="thumb" src="/style_thumb?id=${encodeURIComponent(s.id)}" alt="">` : `<span class="thumb none">${esc(s.engine || "")}</span>`}<b>${esc(s.name)}</b><small class="quiet">from ${esc(s.source_project)}</small></label>`).join("")}</div>
       <small class="quiet" id="srefNote"></small>` : `<small class="quiet" id="srefNote"></small>`}
-    <h3 class="sub" id="styHead">General style</h3>
-    <select id="sty" class="vh" aria-hidden="true" tabindex="-1">${optl(M.styles, o.style_preset, nice)}</select>
+    ${looks.length ? `<h3 class="sub" id="lookHead">Looks <small class="quiet">– point at one to see it move</small></h3>
+    <div class="scards looks" role="radiogroup" aria-label="Look" id="lookCards">${looks.map(l => `<label class="scard lcard" title="${esc(l.suits)}"><input type="radio" name="sty" value="${esc(l.id)}" ${l.id === o.style_preset ? "checked" : ""}>
+      <span class="lthumb"><img src="/ui/looks/${esc(l.id)}.jpg" alt="" loading="lazy"><video muted loop playsinline preload="none" src="/ui/looks/${esc(l.id)}.mp4"></video></span>
+      <b>${esc(l.name)}</b><small class="quiet">${esc(l.suits)}</small>
+      <span class="lsw">${(l.swatch || []).map(c => `<i style="background:${esc(c)}"></i>`).join("")}</span></label>`).join("")}</div>
+    <small class="quiet lcredit">Looks adapted from <a href="${esc(LOOK_SRC)}" target="_blank" rel="noopener">Shaan Johari's style cards</a> (@viashaan). Built in the HTML engine, any size.</small>` : ""}
+    <h3 class="sub" id="styHead">${looks.length ? "Or a general mood" : "General style"}</h3>
+    <select id="sty" class="vh" aria-hidden="true" tabindex="-1">${optl([...looks.map(l => l.id), ...M.styles], o.style_preset, styleName)}</select>
     <div class="scards text" role="radiogroup" aria-label="General style" id="styCards">${M.styles.map(k => `<label class="scard"><input type="radio" name="sty" value="${esc(k)}" ${k === o.style_preset ? "checked" : ""} ${!styles.length && k === o.style_preset ? "data-first" : ""}>
       <b>${esc(nice(k))}</b><small class="quiet">${esc((M.style_desc || {})[k] || "")}</small></label>`).join("")}</div>
     <div class="fg" style="margin-top:12px">
@@ -882,9 +890,18 @@ async function fillForm(o, preset, keep = {}) {
     const s = styles.find(x => x.id === $("#sref").value);
     $("#srefNote").textContent = s ? (s.note ? `You liked: ${s.note}` : "Claude gets its frames and code and makes the new video in the same look.") : "";
     $("#styCards").classList.toggle("muted", !!s);
-    $("#styHead").textContent = s ? "General style (the saved style decides)" : "General style";
+    if ($("#lookCards")) $("#lookCards").classList.toggle("muted", !!s);
+    $("#styHead").textContent = s ? "General style (the saved style decides)" : (looks.length ? "Or a general mood" : "General style");
   };
   $("#sref").onchange = showRef; showRef();
+  /* look thumbnails play while pointed at, and the chosen one keeps playing */
+  const lookPlay = () => document.querySelectorAll(".lcard").forEach(c => {
+    const v = c.querySelector("video"), on = c.matches(":hover") || c.querySelector("input").checked;
+    c.classList.toggle("playing", on);
+    if (on && v.paused) v.play().catch(() => {}); else if (!on && !v.paused) { v.pause(); v.currentTime = 0; }
+  });
+  document.querySelectorAll(".lcard").forEach(c => { c.onmouseenter = c.onmouseleave = c.onfocusin = c.onfocusout = () => setTimeout(lookPlay, 0); });
+  $("#npb").addEventListener("change", e => { if (e.target.name === "sty") lookPlay(); });
   const lengthFields = () => { const m = $("#dmode").value; $("#secsF").hidden = m !== "fixed"; $("#tailF").hidden = m !== "narration"; };
   lengthFields();
   $("#size").onchange = e => { const v = M.sizes[e.target.value]; if (v) { $("#w").value = v[0]; $("#h").value = v[1]; } };
@@ -939,7 +956,7 @@ function renderReview() {
     ${row("Take care of", short(o.care) + (rules ? `${o.care.trim() ? " + " : ""}${rules} rule${rules === 1 ? "" : "s"} from Settings` : ""), 1, "nothing extra")}
     ${row("Format", `${presetTitle(o.preset)} · ${o.size[0]}×${o.size[1]} · ${o.fps} fps${o.variants.length ? " · also " + o.variants.join(", ") : ""} · ${((M.captions || {})[o.captions] || o.captions).toLowerCase()}`, 2)}
     ${row("Sound", (M.audio_export || {})[o.audio.export] || o.audio.export, 2)}
-    ${row("Look", st ? `Saved style “${st.name}”` : nice(o.style_preset) + (o.style ? ` · ${short(o.style, 60)}` : "") + (o.brand ? ` · brand ${o.brand}` : ""), 3)}
+    ${row("Look", st ? `Saved style “${st.name}”` : styleName(o.style_preset) + (o.style ? ` · ${short(o.style, 60)}` : "") + (o.brand ? ` · brand ${o.brand}` : ""), 3)}
     </div>`;
 }
 

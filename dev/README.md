@@ -22,7 +22,7 @@ hours, or right away with **Settings → Check now**.
 ## Tests
 
 `tests/run_all.py` runs every suite: `t_api`, `t_core`, `t_checks`, `t_mcp`, `t_media_styles`, `t_models`, `t_render`,
-`t_trash`, `t_update` and the jsdom UI test `ui_test.js`. GitHub runs them on Windows for every push
+`t_trash`, `t_update`, `t_looks` and the jsdom UI test `ui_test.js`. GitHub runs them on Windows for every push
 (**Actions → Tests**, `.github/workflows/tests.yml`). Publish only when they are green. Tests never touch the real
 `settings.json` (they point `VZ_SETTINGS` / `core.SETTINGS` at a temp file).
 
@@ -40,3 +40,15 @@ hours, or right away with **Settings → Check now**.
 | `get.ps1`, `Vizavi-Studio-Installer.cmd`, `Install Vizavi Studio.cmd` | the three ways to install (keep `get.ps1` at the root – installed copies of the quick installer download it from there) |
 
 More about features and folders: [`app/README.md`](../app/README.md).
+
+## Looks
+
+`app/claude/looks/` holds the ten signature looks (recipes, reference frames, fonts) and `app/ui/looks/` their moving
+thumbnails. Sources are in `dev/looks/`:
+
+- recipes: edit `dev/looks/make_looks.py`, then `py -3 dev\looks\make_looks.py app\claude\looks`
+- thumbnails: `dev/looks/thumb/scenes.js` (one canvas scene per look, 960×540). Render with Node + Playwright from
+  `dev/looks/thumb/`: `node render.js clip <id> ..\..\..\app\ui\looks\<id>.mp4` and
+  `node render.js stills <id> <t1> <t2> <t3>` (times in `times.txt`; stills go to `app/claude/looks/stills/<id>_1..3.jpg`,
+  the last one scaled to 480×270 is the poster `app/ui/looks/<id>.jpg`). The page loads `../fonts.css`, so copy
+  `app/claude/looks/fonts*` next to `dev/looks/` first.

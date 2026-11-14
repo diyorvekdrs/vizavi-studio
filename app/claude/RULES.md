@@ -22,6 +22,8 @@ script was given – DIRECTION.md §1a); `words_whisper.tsv` is raw, often missp
 video clips, logos, fonts – LIGHT COPIES; at render time the full-size originals are at `assets/<name>` –
 read `input/ASSETS.md`: never ship re-encoded/trimmed/scaled copies of them, declare clip cuts in `media.json`);
 `style_ref/` when present (a saved style the user wants matched – read `style_ref/STYLE.md` first);
+`LOOK.md` + `look/` when present (a signature look the user picked – its palette, type, motion and Never list are
+binding, its fonts are in `assets/`);
 `input/brand/*` (logo, fonts, `brand.json` colors). Use what's given; don't invent brand facts.
 
 ## Choose the engine (unless the spec fixes it)

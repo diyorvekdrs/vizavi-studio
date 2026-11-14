@@ -2,7 +2,7 @@
 
 The workspace holds exactly what a request zip would: `vizavi.json`, `input/` (brief.md, words.tsv, captions,
 transcript passes, light copies of the assets + ASSETS.md, HARDWARE.md), `tools/`, `kit/`, `templates/`, `fonts/`,
-`library/`, `style_ref/` (if a saved style is to be matched), `RULES.md`, `DIRECTION.md`, `ENGINE_*.md`,
+`library/`, `style_ref/` (if a saved style is to be matched), `LOOK.md` + `look/` (if the user picked a look), `RULES.md`, `DIRECTION.md`, `ENGINE_*.md`,
 `PLAN_TEMPLATE.md`. You write only `episode/`. Everything in RULES.md and DIRECTION.md applies, with these differences:
 
 - **Tools instead of a shell.** read_file / list_files / write_file / edit_file, `check` instead of

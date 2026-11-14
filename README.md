@@ -51,6 +51,7 @@ preview, the app checks it, and after your notes you get the final in every size
 | 🖥️ **Renders on your PC** | Uses an NVIDIA graphics card when there is one, the processor when not – your files never leave your computer |
 | 🔎 **Checks every preview** | Text cut off or under the TikTok/Reels buttons, too small, too faint, too brief, misspelled; sound and picture problems – ranked from *broken* to *polish* |
 | 💬 **Chat mode** | With the Claude desktop app, Claude builds and checks the video right on your PC – no zips to move |
+| ✨ **Ten signature looks** | Pick one with a moving preview – Claude gets the full recipe, frames and fonts |
 | 🎨 **Your look, again** | Save a video you liked as a style and get the next ones in the same look |
 | ♻️ **Fast changes** | After your notes only the seconds that changed are rendered again |
 | 🔄 **Updates itself** | One click when a new version is out – with undo |
@@ -154,6 +155,9 @@ on that Windows user; zips keep working for claude.ai in the browser.
 <details>
 <summary><b>Show the tips</b></summary>
 
+- ✨ **Looks** – ten ready-made looks under **Look** in a new project (Glow Orb, Frosted Glass, Apple One-Take, Retro CRT,
+  Oscilloscope, Magazine, Blue Editorial, Risograph, Swiss Grid, Blueprint). Point at one to see it move; Claude gets
+  its full recipe, reference frames and fonts. Adapted from [Shaan Johari's style cards](https://ruby-cotija-fb5.notion.site/Animation-styles-you-can-build-with-Claude-or-Codex-3fa28691eca3814ebb34c73a7cc261bf).
 - 🎨 **Save as style** – liked a video? **Save as style…** on its page, then pick it under **Look** in a new project.
 - 📐 **Size and sound** – changed your mind about the shape or the sound? **More → Size and sound…** on the project
   page. Ask for it in your notes and Claude switches it for you.

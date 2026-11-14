@@ -1,0 +1,251 @@
+{
+ "source": {
+  "title": "Shaan Johari – “Animation styles you can build with Claude (or Codex)”",
+  "url": "https://ruby-cotija-fb5.notion.site/Animation-styles-you-can-build-with-Claude-or-Codex-3fa28691eca3814ebb34c73a7cc261bf"
+ },
+ "general_never": [
+  "No neon glow unless the look is built on glow.",
+  "No particle bursts or sparkles.",
+  "No crossfades – things change shape or cut, they don't dissolve.",
+  "No bounce on everything: choose the one moment that bounces.",
+  "No camera shake, no lens flares.",
+  "No glowing grid floors.",
+  "No text in the corners of the frame.",
+  "Nothing that looks like a template."
+ ],
+ "looks": [
+  {
+   "id": "glow_orb",
+   "name": "Glow Orb",
+   "family": "Glowing 2D",
+   "suits": "Calm one-liners: mindset, wellness, intros, a quiet statement.",
+   "swatch": [
+    "#070304",
+    "#531829",
+    "#F696DE",
+    "#FBF6F8"
+   ],
+   "dark": true,
+   "fonts": [
+    "outfit-latin-500-normal.woff2",
+    "outfit-latin-ext-500-normal.woff2"
+   ],
+   "font_families": [
+    "Outfit"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "frosted_glass",
+   "name": "Frosted Glass UI",
+   "family": "Glassmorphism",
+   "suits": "App or tool walkthroughs, “how I'd do X”, any idea framed as a search.",
+   "swatch": [
+    "#0E2A3D",
+    "#1F5A6E",
+    "#FF8A5C",
+    "#E3558A"
+   ],
+   "dark": true,
+   "fonts": [
+    "plus-jakarta-sans-latin-400-normal.woff2",
+    "plus-jakarta-sans-latin-ext-400-normal.woff2",
+    "plus-jakarta-sans-latin-500-normal.woff2",
+    "plus-jakarta-sans-latin-ext-500-normal.woff2",
+    "plus-jakarta-sans-latin-600-normal.woff2",
+    "plus-jakarta-sans-latin-ext-600-normal.woff2"
+   ],
+   "font_families": [
+    "PlusJakartaSans"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "one_take",
+   "name": "Apple One-Take",
+   "family": "Keynote style",
+   "suits": "Product reveals, feature launches, “here's how it works” openers.",
+   "swatch": [
+    "#EEEEEC",
+    "#111113",
+    "#FBFBF9",
+    "#FF3B30"
+   ],
+   "dark": false,
+   "fonts": [
+    "inter-tight-cyrillic-600-normal.woff2",
+    "inter-tight-latin-600-normal.woff2",
+    "inter-tight-latin-ext-600-normal.woff2",
+    "inter-tight-cyrillic-700-normal.woff2",
+    "inter-tight-latin-700-normal.woff2",
+    "inter-tight-latin-ext-700-normal.woff2"
+   ],
+   "font_families": [
+    "InterTight"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "crt_glow",
+   "name": "Retro CRT Glow",
+   "family": "CRT / retro-futurism",
+   "suits": "Announcements, “coming up next”, premieres, throwbacks, anything that should feel broadcast.",
+   "swatch": [
+    "#07090F",
+    "#0B0E16",
+    "#FF9A90",
+    "#F05A4A"
+   ],
+   "dark": true,
+   "fonts": [
+    "syncopate-latin-700-normal.woff2",
+    "syncopate-latin-ext-700-normal.woff2",
+    "share-tech-mono-latin-400-normal.woff2"
+   ],
+   "font_families": [
+    "Syncopate",
+    "ShareTechMono"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "oscilloscope",
+   "name": "Oscilloscope",
+   "family": "Oscilloscope art",
+   "suits": "Tech, music, data, launches, any “it all clicked” moment.",
+   "swatch": [
+    "#030805",
+    "#0D2216",
+    "#46FF8C",
+    "#D7FFF3"
+   ],
+   "dark": true,
+   "fonts": [
+    "share-tech-mono-latin-400-normal.woff2"
+   ],
+   "font_families": [
+    "ShareTechMono"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "magazine_note",
+   "name": "Magazine Layout + Note",
+   "family": "Editorial layout",
+   "suits": "Quotes, reading lists, essays, product stories – considered rather than loud.",
+   "swatch": [
+    "#EAEDED",
+    "#1B1E25",
+    "#C42E26",
+    "#242E46"
+   ],
+   "dark": false,
+   "fonts": [
+    "bodoni-moda-latin-400-normal.woff2",
+    "bodoni-moda-latin-ext-400-normal.woff2",
+    "bodoni-moda-latin-400-italic.woff2",
+    "bodoni-moda-latin-ext-400-italic.woff2",
+    "newsreader-latin-400-normal.woff2",
+    "newsreader-latin-ext-400-normal.woff2",
+    "newsreader-latin-400-italic.woff2",
+    "newsreader-latin-ext-400-italic.woff2",
+    "la-belle-aurore-latin-400-normal.woff2",
+    "la-belle-aurore-latin-ext-400-normal.woff2"
+   ],
+   "font_families": [
+    "BodoniModa",
+    "Newsreader",
+    "LaBelleAurore"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "blue_editorial",
+   "name": "Blue Editorial",
+   "family": "Editorial kinetic type",
+   "suits": "A bold one-line statement, a launch, a title card, a manifesto line.",
+   "swatch": [
+    "#2433F0",
+    "#F4F5FA"
+   ],
+   "dark": true,
+   "fonts": [
+    "instrument-serif-latin-400-italic.woff2",
+    "instrument-serif-latin-ext-400-italic.woff2",
+    "schibsted-grotesk-latin-900-normal.woff2",
+    "schibsted-grotesk-latin-ext-900-normal.woff2"
+   ],
+   "font_families": [
+    "InstrumentSerif",
+    "SchibstedGrotesk"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "risograph",
+   "name": "Risograph",
+   "family": "Risograph print",
+   "suits": "Event promos, zines, music, playful brand moments – hand-made, not digital.",
+   "swatch": [
+    "#EDEFEE",
+    "#FF48B0",
+    "#3255A4",
+    "#32186F"
+   ],
+   "dark": false,
+   "fonts": [
+    "bricolage-grotesque-latin-800-normal.woff2",
+    "bricolage-grotesque-latin-ext-800-normal.woff2"
+   ],
+   "font_families": [
+    "BricolageGrotesque"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "swiss_grid",
+   "name": "Swiss Grid",
+   "family": "Swiss style",
+   "suits": "A bold one-line statement, a principle, a manifesto opener.",
+   "swatch": [
+    "#F0F0E8",
+    "#101010",
+    "#F03820"
+   ],
+   "dark": false,
+   "fonts": [
+    "public-sans-latin-600-normal.woff2",
+    "public-sans-latin-ext-600-normal.woff2",
+    "public-sans-latin-800-normal.woff2",
+    "public-sans-latin-ext-800-normal.woff2"
+   ],
+   "font_families": [
+    "PublicSans"
+   ],
+   "engine": "html"
+  },
+  {
+   "id": "blueprint",
+   "name": "Pencil to Blueprint",
+   "family": "Technical drawing",
+   "suits": "Idea-to-product, process, design and engineering stories.",
+   "swatch": [
+    "#ECECE6",
+    "#25262B",
+    "#1C4C8F",
+    "#EEF4FB"
+   ],
+   "dark": false,
+   "fonts": [
+    "barlow-semi-condensed-latin-500-normal.woff2",
+    "barlow-semi-condensed-latin-ext-500-normal.woff2",
+    "barlow-semi-condensed-latin-600-normal.woff2",
+    "barlow-semi-condensed-latin-ext-600-normal.woff2"
+   ],
+   "font_families": [
+    "BarlowSemiCondensed"
+   ],
+   "engine": "html"
+  }
+ ]
+}
