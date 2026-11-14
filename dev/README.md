@@ -22,7 +22,7 @@ hours, or right away with **Settings → Check now**.
 ## Tests
 
 `tests/run_all.py` runs every suite: `t_api`, `t_core`, `t_checks`, `t_mcp`, `t_media_styles`, `t_models`, `t_render`,
-`t_trash`, `t_update`, `t_looks` and the jsdom UI test `ui_test.js`. GitHub runs them on Windows for every push
+`t_trash`, `t_update`, `t_looks`, `t_i18n` and the jsdom UI test `ui_test.js`. GitHub runs them on Windows for every push
 (**Actions → Tests**, `.github/workflows/tests.yml`). Publish only when they are green. Tests never touch the real
 `settings.json` (they point `VZ_SETTINGS` / `core.SETTINGS` at a temp file).
 
@@ -52,3 +52,12 @@ thumbnails. Sources are in `dev/looks/`:
   `node render.js stills <id> <t1> <t2> <t3>` (times in `times.txt`; stills go to `app/claude/looks/stills/<id>_1..3.jpg`,
   the last one scaled to 480×270 is the poster `app/ui/looks/<id>.jpg`). The page loads `../fonts.css`, so copy
   `app/claude/looks/fonts*` next to `dev/looks/` first.
+
+## Languages
+
+The code writes English. `app/ui/i18n.js` shows the window in Uzbek when the user picks it (Settings → Language or the
+sidebar link; stored in the window's localStorage, default = Windows language): every text node, option, placeholder,
+title and aria-label that matches an entry of `app/ui/lang/uz.js` is replaced before it is painted. Entries are
+`[English, Uzbek]`; `{0}`, `{1}` match any text. New UI text → add its Uzbek line there. To find missing ones: open the
+window in Uzbek and run `[...VZI18N.missing]` in the developer console (Ctrl+Shift+I). Elements with `data-noi18n`
+(transcript, log) are never translated. Messages copied for Claude stay English on purpose.

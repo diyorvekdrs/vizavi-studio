@@ -47,7 +47,7 @@ preview, the app checks it, and after your notes you get the final in every size
 | | |
 |---|---|
 | 🎬 **Any kind of video** | Narrated explainers, Shorts / Reels / TikToks, promos, music videos, kinetic typography, logo stings – any size and frame rate |
-| 🇺🇿 **Made for Uzbek** | Speech recognition tuned for Uzbek; exact spelling from your script, timing from your voice |
+| 🇺🇿 **Made for Uzbek** | Speech recognition tuned for Uzbek; exact spelling from your script, timing from your voice. The window speaks Uzbek or English |
 | 🖥️ **Renders on your PC** | Uses an NVIDIA graphics card when there is one, the processor when not – your files never leave your computer |
 | 🔎 **Checks every preview** | Text cut off or under the TikTok/Reels buttons, too small, too faint, too brief, misspelled; sound and picture problems – ranked from *broken* to *polish* |
 | 💬 **Chat mode** | With the Claude desktop app, Claude builds and checks the video right on your PC – no zips to move |
@@ -155,6 +155,8 @@ on that Windows user; zips keep working for claude.ai in the browser.
 <details>
 <summary><b>Show the tips</b></summary>
 
+- 🌐 **Oʻzbekcha / English** – switch the window's language at the bottom of the sidebar or in **Settings → Language**.
+  Uzbek words live in `app/ui/lang/uz.js` – fix any of them there.
 - ✨ **Looks** – ten ready-made looks under **Look** in a new project (Glow Orb, Frosted Glass, Apple One-Take, Retro CRT,
   Oscilloscope, Magazine, Blue Editorial, Risograph, Swiss Grid, Blueprint). Point at one to see it move; Claude gets
   its full recipe, reference frames and fonts. Adapted from [Shaan Johari's style cards](https://ruby-cotija-fb5.notion.site/Animation-styles-you-can-build-with-Claude-or-Codex-3fa28691eca3814ebb34c73a7cc261bf).

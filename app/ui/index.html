@@ -20,6 +20,7 @@
     <nav id="projects" aria-label="Projects"></nav>
     <div class="side-foot">
       <button class="link" id="openProjects">Projects folder</button>
+      <button class="link" id="langBtn" data-noi18n title="Language / Til"></button>
       <button class="link" id="settingsBtn">Settings</button>
     </div>
   </aside>
@@ -50,7 +51,7 @@
     <div class="st-right" id="stRight"></div>
     <button class="link" id="logBtn" aria-expanded="false">Log</button>
   </footer>
-  <pre id="log" hidden></pre>
+  <pre id="log" hidden data-noi18n></pre>
 </div>
 
 <div id="updBar" hidden role="status"></div>
@@ -60,6 +61,8 @@
 <div id="drop" hidden><div><strong>Drop to add</strong><span>Voice, music, images, clips, fonts, a folder or a zip from Claude</span></div></div>
 <div id="toasts" aria-live="polite"></div>
 <dialog id="dlg"></dialog>
+<script src="/ui/lang/uz.js"></script>
+<script src="/ui/i18n.js"></script>
 <script src="/ui/app.js"></script>
 </body>
 </html>

@@ -386,7 +386,7 @@ function renderView(p, keepVideo) {
         ${p.outputs.length ? `<ul class="outs" style="margin-top:12px">${p.outputs.map(o => `<li><button class="link" data-a="reveal_output" data-file="${esc(o.name)}">${esc(o.name)}</button><span class="mb">${o.mb != null ? o.mb + " MB" : ""}</span></li>`).join("")}</ul>` : ""}
       </div>
       <div class="card"><h3>Transcript ${p.has_narration ? `<button class="btn ghost small" data-a="redo" data-idle>Redo…</button>` : ""}</h3>
-        <div class="tx">${tx}</div></div>
+        <div class="tx" ${p.transcript || p.alignment ? "data-noi18n" : ""}>${tx}</div></div>
     </div>
     <div class="hist">${(p.history || []).slice().reverse().map(h => `<div><span>${esc(h[0])}</span><span>${esc(h[2])}</span></div>`).join("")}</div>`;
   const slot = $("#vidSlot");
@@ -616,6 +616,8 @@ function settingsDialog() {
   openDialog(`<div class="dh"><h2>Settings</h2><button class="link" data-close>Close</button></div><div class="db">
     <div class="fs"><h3>My rules<small>Added to every new project as must-follow rules.</small></h3>
       <textarea id="rules" style="min-height:120px" placeholder="On-screen text in Uzbek Latin only&#10;Scientifically accurate, no fantasy visuals">${esc(s.standing_rules || "")}</textarea></div>
+    <div class="fs"><h3>Language</h3><div><div class="togs seg" id="langSeg" data-noi18n>${[["en", "English"], ["uz", "Oʻzbekcha"]].map(([v, t]) =>
+      `<label class="chk tog"><input type="radio" name="lang" value="${v}" ${VZI18N.lang === v ? "checked" : ""}>${t}</label>`).join("")}</div></div></div>
     <div class="fs"><h3>Appearance</h3><div><div class="togs seg" id="theme">${[["", "Automatic"], ["light", "Light"], ["dark", "Dark"]].map(([v, t]) =>
       `<label class="chk tog"><input type="radio" name="theme" value="${v}" ${(theme() === v) ? "checked" : ""}>${t}</label>`).join("")}</div>
       <label class="chk sw" style="margin-top:8px"><input type="checkbox" id="fx" ${s.light_effects ? "checked" : ""}>Lighter visual effects (smoother on slower PCs)</label></div></div>
@@ -1097,6 +1099,9 @@ setTheme(theme());
 /* ---------- wiring ---------- */
 const safe = fn => (...a) => Promise.resolve(fn(...a)).catch(e => toast(e.message, "error"));
 $("#newBtn").onclick = () => newProject({});
+$("#langBtn").textContent = VZI18N.lang === "uz" ? "English" : "Oʻzbekcha";
+$("#langBtn").onclick = () => VZI18N.set(VZI18N.lang === "uz" ? "en" : "uz");
+document.addEventListener("change", e => { if (e.target.name === "lang" && e.target.checked && e.target.value !== VZI18N.lang) VZI18N.set(e.target.value); });
 $("#emptyNew").onclick = () => newProject({});
 $("#settingsBtn").onclick = () => S.meta && settingsDialog();
 $("#openProjects").onclick = safe(() => api("/api/act", { action: "open_projects" }));
