@@ -1,5 +1,5 @@
 {
-"version": "2.5.1",
+"version": "2.6.0",
 "files": [
 "README.md",
 "Start Vizavi Studio (if double-click does nothing).bat",
@@ -179,7 +179,9 @@
 "studio/vizavi.ico",
 "ui/app.css",
 "ui/app.js",
+"ui/i18n.js",
 "ui/index.html",
+"ui/lang/uz.js",
 "ui/looks/blue_editorial.jpg",
 "ui/looks/blue_editorial.mp4",
 "ui/looks/blueprint.jpg",
