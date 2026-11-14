@@ -7,7 +7,7 @@
    library never leave this PC), tags it vX.Y.Z and pushes to GitHub
 3. builds the release zip (Install Vizavi Studio.cmd + READ ME + app/) with its SHA-256 and publishes it as a
    GitHub release. Every friend's app sees it within a few hours (or right away with Settings → Check now)."""
-import argparse, hashlib, json, re, subprocess, sys
+import argparse, hashlib, json, re, subprocess, sys, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]          # C:\Vizavi Studio (the repository)
@@ -75,6 +75,16 @@ def main():
     dist = ROOT / "dist"
     dist.mkdir(exist_ok=True)
     zname = f"vizavi-studio-{new}.zip"
+    # build the zip from exactly what will be committed and check it holds every file release.json lists
+    # (an export-ignore pattern once dropped app/README.md and every update failed)
+    run("git", "archive", "--format=zip", "-o", str(dist / zname), run("git", "write-tree", capture=True).strip())
+    with zipfile.ZipFile(dist / zname) as z:
+        have = set(z.namelist())
+    missing = [f for f in files + ["release.json"] if f"app/{f}" not in have]
+    if missing:
+        VFILE.write_text(src, encoding="utf-8")
+        run("git", "reset", "-q")
+        sys.exit("Stopped – the release zip would miss: " + ", ".join(missing[:10]) + " (check .gitattributes)")
     if a.dry:
         staged = run("git", "diff", "--cached", "--name-only", capture=True).splitlines()
         print(f"Dry run – {len(files) + 1} files would be in the release; changed since the last one:")
@@ -85,7 +95,6 @@ def main():
     run("git", "commit", "-m", f"Vizavi Studio {new}\n\n{notes}")
     run("git", "tag", f"v{new}")
     run("git", "push", "origin", "HEAD", "--tags")
-    run("git", "archive", "--format=zip", "-o", str(dist / zname), f"v{new}")
     stable = dist / "Vizavi-Studio-Setup.zip"          # same file under a fixed name: the README's download button
     stable.write_bytes((dist / zname).read_bytes())
     h = hashlib.sha256((dist / zname).read_bytes()).hexdigest()
