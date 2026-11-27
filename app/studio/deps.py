@@ -51,7 +51,11 @@ def write_lock(log):
         log(f"(could not record package versions: {e})")
 
 
+NET_FAILED = False      # a download failed this run: its warning must not be cached, the next start tries again
+
+
 def pip(pkgs, log, extra_args=(), constrain=True):
+    global NET_FAILED
     for extra in ([], ["--user"]):
         cons = ["-c", str(LOCK)] if constrain and LOCK.exists() else []
         cmd = [py_exe(), "-m", "pip", "install", "--disable-pip-version-check", *cons, *extra_args, *extra, *pkgs]
@@ -64,12 +68,15 @@ def pip(pkgs, log, extra_args=(), constrain=True):
                 log("   " + line[:200])
         if p.wait() == 0:
             return True
+    NET_FAILED = True
     return False
 
 
 def ensure(log, prof=None, force=False):
     """returns list of warnings. Fast when everything is installed. prof = studio.hw profile of this PC:
     GPU parts are only installed where they can run, the Uzbek pack only with enough memory/disk."""
+    global NET_FAILED
+    NET_FAILED = False
     warn = []
     prof = prof or {"gpu_speech": bool(shutil.which("nvidia-smi")), "gpu_render": bool(shutil.which("nvidia-smi")),
                     "uzbek_pack": True, "low_disk": False}
@@ -122,6 +129,7 @@ def ensure(log, prof=None, force=False):
         if r.returncode == 0:
             (APP / ".chromium_ok").write_text("ok")
         else:
+            NET_FAILED = True
             warn.append("Chromium download failed (HTML engine): " + (r.stderr or r.stdout)[-300:])
     if prof["gpu_render"]:
         if not has("cupy"):
@@ -182,6 +190,10 @@ def install_torch(log, prof, replace=False):
     """PyTorch for the Uzbek model / precise timing. With an NVIDIA card the default pip wheel on Windows is
     processor-only, so the CUDA builds are tried first and each is verified with torch.cuda.is_available();
     anything that fails falls back to the plain wheel. True when torch imports afterwards."""
+    # shortcut: "none" is final, delete .torch_cuda_tried to try the CUDA builds again (e.g. after a driver update)
+    tried = TORCH_MARK.read_text().strip() if TORCH_MARK.exists() else ""
+    if tried == "none":                  # every CUDA build was tried on this PC and none worked: don't download them again
+        return has("torch") or pip(["torch"], log) and has("torch")
     if prof.get("gpu_speech"):
         for tag in CUDA_TAGS:
             log(f"Installing PyTorch for the graphics card ({tag}, large download – one time)…")
@@ -246,16 +258,28 @@ def make_shortcuts(log):
 
 DEPS_VERSION = "6"
 CACHE = APP / ".deps_ok"
+WARN_CACHE = APP / ".deps_warn.json"      # the warnings of the last check, kept for the same key
 
 
 def ensure_cached(log, force=False, prof=None):
     """instant on normal starts: the full check runs once per Python version / app dependency set / hardware."""
     p = prof or {}
-    key = f"{sys.version.split()[0]}|{DEPS_VERSION}|{p.get('gpu_speech')}|{p.get('gpu_render')}|{p.get('uzbek_pack')}"
+    key = f"{sys.version.split()[0]}|{DEPS_VERSION}|{p.get('gpu_speech')}|{p.get('gpu_render')}|{p.get('uzbek_pack')}|{p.get('low_disk')}"
     if not force and CACHE.exists() and CACHE.read_text(encoding="utf-8").strip() == key:
         return []
+    try:
+        last = json.loads(WARN_CACHE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        last = {}
+    if not force and last.get("key") == key:          # same warnings as last time: re-checking would not change them
+        return last["warn"]
     warn = ensure(log, prof, force=force)
     if not warn:
         write_lock(log)
         CACHE.write_text(key, encoding="utf-8")
+        WARN_CACHE.unlink(missing_ok=True)
+    elif not NET_FAILED:            # only warnings about this PC (disk, graphics card) are kept; failed downloads retry
+        WARN_CACHE.write_text(json.dumps({"key": key, "warn": warn}), encoding="utf-8")
+    else:
+        WARN_CACHE.unlink(missing_ok=True)
     return warn

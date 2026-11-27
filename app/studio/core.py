@@ -351,9 +351,6 @@ class Project:
         return [float(l.split("\t")[0]) for l in f.read_text(encoding="utf-8").splitlines() if l[:1].isdigit()]
 
 
-Episode = Project  # v1 name
-
-
 def list_projects(S):
     root = Path(S["projects_dir"])
     if not root.exists():
@@ -361,8 +358,6 @@ def list_projects(S):
     ps = [Project(d) for d in root.iterdir() if (d / "state.json").exists() and not d.name.startswith("_")]
     return sorted(ps, key=lambda e: (e.state.get("history") or [[""]])[-1][0], reverse=True)
 
-
-list_episodes = list_projects
 
 RUNNING_STAGES = ("transcribing", "rendering_preview", "rendering_final")
 
@@ -441,7 +436,7 @@ def norm_tok(t):
 
 def write_timing_files(pr, tj, script, ctx=None):
     """words.tsv = the script's spelling on the audio's timing (Whisper alone misspells, esp. Uzbek)."""
-    from .align import align, clean_transcript, cyr2lat
+    from vz_align import align, clean_transcript, cyr2lat
     raw = tj["words"]
     (pr.src / "words_whisper.tsv").write_text("# raw Whisper output (for reference)\n" + "\n".join(
         f"{w['s']:.3f}\t{w['e']:.3f}\t{w['w']}\t{w.get('p', 0):.2f}" for w in raw) + "\n", encoding="utf-8")
@@ -583,15 +578,6 @@ def redo_transcript(pr, script, S, ctx):
     ctx.progress(1, "Request package ready")
     ctx.log(f"✓ {z.name} rebuilt with the new transcript – send it to Claude (a new chat is best).")
     return pr, z
-
-
-def classify(paths):
-    """dropped files -> narration/music candidates, assets, script text"""
-    audio = [p for p in paths if p.suffix.lower() in AUDIO_EXT]
-    txt = [p for p in paths if p.suffix.lower() in {".txt", ".md"}]
-    assets = [p for p in paths if p.suffix.lower() in IMAGE_EXT | VIDEO_EXT | FONT_EXT
-              or (p.suffix.lower() in AUDIO_EXT and p not in audio[:2])]
-    return audio, txt, assets
 
 
 def new_project(o, files, S, ctx):
@@ -1083,8 +1069,11 @@ def proxy_assets(pr, tmpdir, ctx):
 
 def common_entries(pr, kind, task_md, next_version, extra_manifest=None, narration=True, assets=True, ctx=None):
     o = pr.order
+    if not pr.state.get("pack_key"):       # Claude's zip must echo it back: only then is it picked up from Downloads on its own
+        pr.state["pack_key"] = os.urandom(8).hex()
+        pr.save()
     man = {"app": "vizavi-studio", "app_version": VERSION, "kind": kind, "episode": pr.name, "project": pr.name,
-           "next_version": next_version, "created": now(), "fps": o["fps"], "width": o["size"][0], "height": o["size"][1],
+           "pack_key": pr.state["pack_key"], "next_version": next_version, "created": now(), "fps": o["fps"], "width": o["size"][0], "height": o["size"][1],
            "variants": OD.variants(o), "alpha": o["alpha"], "engine": o["engine"],
            "duration": pr.state.get("duration"), "suggested_nfr": pr.state.get("suggested_nfr"),
            "narration_duration": pr.state.get("narration_duration"),
@@ -1317,10 +1306,6 @@ def zip_ids(path):
     return old, "c" + h.hexdigest()[:15]
 
 
-def zip_id(path):
-    return zip_ids(path)[0]
-
-
 def zip_project_problem(S, man, path):
     """why Claude's zip can't be rendered here, or None. An empty project is never built around Claude's code:
     without the voice, the pictures and the transcript the render is broken, and a deleted project would come back
@@ -1333,6 +1318,13 @@ def zip_project_problem(S, man, path):
                 f"{Path(path).name} again. Its voice, pictures and transcript are in there.")
     return (f"{Path(path).name} is for a project called “{name}”, which isn't on this PC. Claude's zip only holds "
             "the code – the project (voice, pictures, transcript) has to be here first.")
+
+
+def pack_key_ok(S, man):
+    """a zip in Downloads may run unattended only when it carries its project's secret key (a zip can claim any name)"""
+    pr = Project.open(str(man.get("episode") or ""), S, create=False)
+    key = pr.state.get("pack_key") if pr else None
+    return bool(key) and man.get("pack_key") == key
 
 
 ORDER_CHANGE_KEYS = ("size", "variants", "audio_export", "fps")

@@ -144,5 +144,16 @@ check("a month-old token is not reused", server.reuse_token() == "")
 server.TOKEN_FILE.write_text("bad token!", encoding="utf-8")
 check("a damaged token file is not reused", server.reuse_token() == "")
 server.write_token()
+
+# the engine is reached directly even when the PC has a proxy (a VPN app's proxy drops 127.0.0.1 requests)
+os.environ["http_proxy"] = "http://127.0.0.1:9"
+check("local ping ignores the PC's proxy", server.UP._ping(PORT))
+del os.environ["http_proxy"]
+# a second engine must not take the port of a running one (Windows SO_REUSEADDR allowed that)
+try:
+    server.Server(("127.0.0.1", PORT), server.H).server_close(); second = True
+except OSError:
+    second = False
+check("second engine cannot bind the same port", not second)
 print("\nFAILS:", fails if fails else "none")
 shutil.rmtree(tmp, ignore_errors=True)

@@ -14,6 +14,8 @@ WIN = os.name == "nt"
 NOWIN = 0x08000000 if WIN else 0
 DETACH = (0x00000008 | 0x00000200 | 0x08000000) if WIN else 0     # detached, new group, no window
 API = "https://api.github.com/repos/{repo}/releases/latest"
+# the engine on 127.0.0.1 is never reached through the PC's proxy (a VPN app's proxy drops such requests)
+LOCAL = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 UA = {"User-Agent": "VizaviStudio-updater", "Accept": "application/vnd.github+json"}
 
 
@@ -151,7 +153,7 @@ def stage(info, app, progress=None, log=print):
     return new
 
 
-def launch(app, new, python, token, port):
+def _start_helper(mode, app, new, python, token, port):
     """copy this file next to the update and start it as the helper; the caller exits right after"""
     app = Path(app)
     helper = app / ".update" / "helper.py"
@@ -160,22 +162,17 @@ def launch(app, new, python, token, port):
     if WIN and pyw.name.lower() == "python.exe" and pyw.with_name("pythonw.exe").exists():
         pyw = pyw.with_name("pythonw.exe")
     env = dict(os.environ, VZ_TOKEN=token)
-    subprocess.Popen([str(pyw), "-I", str(helper), "apply", str(app), str(new), str(port)], cwd=str(app / ".update"),
+    subprocess.Popen([str(pyw), "-I", str(helper), mode, str(app), str(new), str(port)], cwd=str(app / ".update"),
                      env=env, creationflags=DETACH, close_fds=True, stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def launch(app, new, python, token, port):
+    _start_helper("apply", app, new, python, token, port)
 
 
 def restore_launch(app, python, token, port):
-    app = Path(app)
-    helper = app / ".update" / "helper.py"
-    shutil.copy2(Path(__file__), helper)
-    env = dict(os.environ, VZ_TOKEN=token)
-    pyw = Path(python)
-    if WIN and pyw.name.lower() == "python.exe" and pyw.with_name("pythonw.exe").exists():
-        pyw = pyw.with_name("pythonw.exe")
-    subprocess.Popen([str(pyw), "-I", str(helper), "restore", str(app), "-", str(port)], cwd=str(app / ".update"),
-                     env=env, creationflags=DETACH, close_fds=True, stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _start_helper("restore", app, "-", python, token, port)
 
 
 def has_backup(app):
@@ -194,7 +191,7 @@ def _port_open(port):
 def _ping(port):
     try:
         req = urllib.request.Request(f"http://127.0.0.1:{port}/api/ping", headers={"Host": f"127.0.0.1:{port}"})
-        with urllib.request.urlopen(req, timeout=2) as r:
+        with LOCAL.open(req, timeout=2) as r:
             return json.loads(r.read()).get("app") == "vizavi"
     except Exception:
         return False

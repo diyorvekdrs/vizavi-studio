@@ -160,7 +160,6 @@
 "setup/install.ps1",
 "setup/uninstall.ps1",
 "studio/__init__.py",
-"studio/align.py",
 "studio/claude_link.py",
 "studio/core.py",
 "studio/core_paths.py",

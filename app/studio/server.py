@@ -258,7 +258,6 @@ def setup():
         update_result()
         threading.Thread(target=update_checker, daemon=True).start()
         threading.Thread(target=housekeeping, daemon=True).start()
-        clean_incoming()
         threading.Thread(target=watcher, daemon=True).start()
     except Exception:
         ST.phase = "failed"
@@ -324,6 +323,7 @@ def housekeeping():
             TR.migrate_old(S)
             TR.purge_old(S, ST.log)
             TR.daily_backup(S, latest_code=lambda d: (core.latest_code_dir(core.Project(d)) or [None])[0], log=ST.log)
+            clean_incoming()
         except Exception as e:
             ST.log(f"Housekeeping skipped: {e}")
         time.sleep(3 * 3600)
@@ -361,7 +361,7 @@ def clean_incoming():
     if INCOMING.exists():
         for d in INCOMING.iterdir():
             try:
-                if time.time() - d.stat().st_mtime > 24 * 3600:
+                if time.time() - d.stat().st_mtime > 24 * 3600:     # a half-filled New project form may still need its files
                     shutil.rmtree(d, ignore_errors=True)
             except OSError:
                 pass
@@ -433,6 +433,13 @@ def watcher():
                             told.add(key)
                             msg = (f"{f.name} in Downloads is for a project called \u201c{name}\u201d, which isn't here. "
                                    f"If it is yours, drag the zip onto the window.")
+                            ST.log(msg); ST.toast("warn", msg)
+                        continue
+                    if not core.pack_key_ok(S, man):      # a zip can claim any project name; running its code needs the key
+                        if key not in told:
+                            told.add(key)
+                            msg = (f"Left {f.name} alone: it does not carry this project's key (made before this "
+                                   f"version, or not from Claude). If it is yours, drag it onto the window.")
                             ST.log(msg); ST.toast("warn", msg)
                         continue
                     ST.log(f"Found {f.name} in Downloads")
@@ -626,9 +633,7 @@ def meta():
         "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),
         "warnings": getattr(ST, "warnings", []),
-        "settings": {k: S.get(k) for k in ("standing_rules", "watch_downloads", "auto_play_preview", "precise_timing",
-                                           "uzbek_model", "projects_dir", "downloads_dir", "whisper_model",
-                                           "light_effects", "check_updates")},
+        "settings": {k: S.get(k) for k in SETTING_KEYS},
     }
 
 
@@ -807,6 +812,7 @@ def act(a):
     if kind == "approve":
         if pr.state.get("stage") != "preview_ready":
             raise core.UserMessage(f"“{pr.name}” has no preview waiting for approval.")
+        idle_project(pr, "approve")
         queue_job(f"Final of {pr.name}", core.approve_preview, pr, S, CTX, pr=pr, key=f"final:{pr.name}")
     elif kind == "retry":
         tgt = core.retry_target(pr)
@@ -1275,6 +1281,10 @@ class H(BaseHTTPRequestHandler):
 
 
 # ------------------------------------------------------------------ main
+class Server(ThreadingHTTPServer):
+    allow_reuse_address = not WIN       # on Windows SO_REUSEADDR lets a second engine bind the same port as the first
+
+
 def read_token():
     try:
         return TOKEN_FILE.read_text(encoding="utf-8").strip()
@@ -1314,7 +1324,7 @@ def already_running(argv):
     """another engine owns the port: hand it the files (with its token) and let it open the window"""
     import urllib.request
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/ping", timeout=1.5) as r:
+        with UP.LOCAL.open(f"http://127.0.0.1:{PORT}/api/ping", timeout=1.5) as r:
             if json.loads(r.read()).get("app") != "vizavi":
                 return False
     except Exception:
@@ -1324,7 +1334,7 @@ def already_running(argv):
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{PORT}/api/open", method="POST", data=payload,
                                          headers={"Content-Type": "application/json", "X-VZ-Token": read_token()})
-            urllib.request.urlopen(req, timeout=3).read()
+            UP.LOCAL.open(req, timeout=3).read()
             return True
         except Exception:
             time.sleep(0.7)
@@ -1357,7 +1367,7 @@ def main(argv, open_ui=True):
         ST.token = tok
     ST.pending = [str(Path(p).resolve()) for p in argv]
     try:
-        srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
+        srv = Server(("127.0.0.1", PORT), H)
     except OSError as e:
         print(f"Vizavi Studio could not start: port {PORT} is in use ({e}).", file=sys.stderr)
         return

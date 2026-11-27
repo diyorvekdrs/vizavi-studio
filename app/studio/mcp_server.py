@@ -15,6 +15,7 @@ APP = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(APP))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 from studio.version import VERSION  # noqa: E402
+from studio.update import LOCAL  # noqa: E402
 
 PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
 PORT = int(os.environ.get("VZ_PORT") or 47613)          # (overridable for tests)
@@ -80,7 +81,7 @@ def engine(path, body=None, timeout=20):
             req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}", method="POST" if body is not None else "GET",
                                          data=None if body is None else json.dumps(body).encode(),
                                          headers={"Content-Type": "application/json", "X-VZ-Token": token()})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
+            with LOCAL.open(req, timeout=timeout) as r:
                 return json.loads(r.read() or b"{}")
         except urllib.error.HTTPError as e:
             try:
@@ -104,7 +105,7 @@ def start_engine():
     for _ in range(60):
         time.sleep(1)
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/ping", timeout=1) as r:
+            with LOCAL.open(f"http://127.0.0.1:{PORT}/api/ping", timeout=1) as r:
                 if json.loads(r.read()).get("app") == "vizavi":
                     for _ in range(90):                       # setup (component check) finishes
                         p = engine_poll()
@@ -120,7 +121,7 @@ def engine_poll():
     try:
         req = urllib.request.Request(f"http://127.0.0.1:{PORT}/api/poll?since=999999999",
                                      headers={"X-VZ-Token": token()})
-        with urllib.request.urlopen(req, timeout=5) as r:
+        with LOCAL.open(req, timeout=5) as r:
             return json.loads(r.read())
     except Exception:
         return {}
@@ -338,16 +339,18 @@ def t_edit_file(a):
 
 
 _jobs = {}       # project -> {"proc", "kind", "started", "args"}
+_jobs_lock = threading.Lock()      # Claude may call check twice in parallel
 
 
 def run_job(pr, kind, cmd, cwd):
-    j = _jobs.get(pr.name)
-    if j and j["proc"].poll() is None:
-        raise ToolError(f"A {j['kind']} is still running for this project – call wait (or check again) for its result.")
-    logf = open(cwd / f".{kind}.log", "w", encoding="utf-8")
-    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
-    proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=logf, stderr=subprocess.STDOUT, env=env, creationflags=NOWIN)
-    _jobs[pr.name] = {"proc": proc, "kind": kind, "started": time.time(), "log": cwd / f".{kind}.log", "ws": cwd}
+    with _jobs_lock:
+        j = _jobs.get(pr.name)
+        if j and j["proc"].poll() is None:
+            raise ToolError(f"A {j['kind']} is still running for this project – call wait (or check again) for its result.")
+        logf = open(cwd / f".{kind}.log", "w", encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
+        proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=logf, stderr=subprocess.STDOUT, env=env, creationflags=NOWIN)
+        _jobs[pr.name] = {"proc": proc, "kind": kind, "started": time.time(), "log": cwd / f".{kind}.log", "ws": cwd}
     return wait_job(pr, CHECK_WAIT)
 
 
