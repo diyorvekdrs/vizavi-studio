@@ -131,6 +131,20 @@ check("pack_key_ok forged: no key / wrong key / no project",
       not core.pack_key_ok(S0, {"episode": "keyed"}) and not core.pack_key_ok(S0, {"episode": "keyed", "pack_key": "x"})
       and not core.pack_key_ok(S0, {"episode": "nothere", "pack_key": "k1k1"}))
 
+# component check: warnings about this PC are cached, a failed download is retried at the next start
+from studio import deps
+deps.CACHE, deps.WARN_CACHE, deps.write_lock = tmp / ".deps_ok", tmp / ".deps_warn.json", lambda log: None
+runs = []
+def fake_ensure(log, prof=None, force=False, net=False):
+    runs.append(1); deps.NET_FAILED = net; return ["warn"]
+deps.ensure = fake_ensure
+deps.ensure_cached(print); deps.ensure_cached(print)
+check("PC warning cached: second start skips the check", len(runs) == 1, len(runs))
+runs.clear(); deps.WARN_CACHE.unlink()
+deps.ensure = lambda log, prof=None, force=False: fake_ensure(log, prof, force, net=True)
+deps.ensure_cached(print); deps.ensure_cached(print)
+check("failed download not cached: every start retries", len(runs) == 2, len(runs))
+
 # order normalisation / validation
 o = OD.normalize({"size": [1081, 1921], "fps": "25", "duration": {"mode": "fixed", "seconds": "abc", "tail": "2"}})
 check("size made even", o["size"][0] % 2 == 0 and o["size"][1] % 2 == 0, o["size"])

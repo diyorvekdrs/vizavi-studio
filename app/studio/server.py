@@ -361,7 +361,7 @@ def clean_incoming():
     if INCOMING.exists():
         for d in INCOMING.iterdir():
             try:
-                if time.time() - d.stat().st_mtime > 6 * 3600:      # uploads are copied into the project within minutes
+                if time.time() - d.stat().st_mtime > 24 * 3600:     # a half-filled New project form may still need its files
                     shutil.rmtree(d, ignore_errors=True)
             except OSError:
                 pass
@@ -438,8 +438,9 @@ def watcher():
                     if not core.pack_key_ok(S, man):      # a zip can claim any project name; running its code needs the key
                         if key not in told:
                             told.add(key)
-                            ST.log(f"Left {f.name} alone: it does not carry this project's key (made before this "
+                            msg = (f"Left {f.name} alone: it does not carry this project's key (made before this "
                                    f"version, or not from Claude). If it is yours, drag it onto the window.")
+                            ST.log(msg); ST.toast("warn", msg)
                         continue
                     ST.log(f"Found {f.name} in Downloads")
                     submit(f"Process {f.name}", core.process_zip, f, S, CTX,

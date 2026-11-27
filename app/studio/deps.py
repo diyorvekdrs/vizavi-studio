@@ -51,7 +51,11 @@ def write_lock(log):
         log(f"(could not record package versions: {e})")
 
 
+NET_FAILED = False      # a download failed this run: its warning must not be cached, the next start tries again
+
+
 def pip(pkgs, log, extra_args=(), constrain=True):
+    global NET_FAILED
     for extra in ([], ["--user"]):
         cons = ["-c", str(LOCK)] if constrain and LOCK.exists() else []
         cmd = [py_exe(), "-m", "pip", "install", "--disable-pip-version-check", *cons, *extra_args, *extra, *pkgs]
@@ -64,12 +68,15 @@ def pip(pkgs, log, extra_args=(), constrain=True):
                 log("   " + line[:200])
         if p.wait() == 0:
             return True
+    NET_FAILED = True
     return False
 
 
 def ensure(log, prof=None, force=False):
     """returns list of warnings. Fast when everything is installed. prof = studio.hw profile of this PC:
     GPU parts are only installed where they can run, the Uzbek pack only with enough memory/disk."""
+    global NET_FAILED
+    NET_FAILED = False
     warn = []
     prof = prof or {"gpu_speech": bool(shutil.which("nvidia-smi")), "gpu_render": bool(shutil.which("nvidia-smi")),
                     "uzbek_pack": True, "low_disk": False}
@@ -122,6 +129,7 @@ def ensure(log, prof=None, force=False):
         if r.returncode == 0:
             (APP / ".chromium_ok").write_text("ok")
         else:
+            NET_FAILED = True
             warn.append("Chromium download failed (HTML engine): " + (r.stderr or r.stdout)[-300:])
     if prof["gpu_render"]:
         if not has("cupy"):
@@ -270,6 +278,8 @@ def ensure_cached(log, force=False, prof=None):
         write_lock(log)
         CACHE.write_text(key, encoding="utf-8")
         WARN_CACHE.unlink(missing_ok=True)
-    else:
+    elif not NET_FAILED:            # only warnings about this PC (disk, graphics card) are kept; failed downloads retry
         WARN_CACHE.write_text(json.dumps({"key": key, "warn": warn}), encoding="utf-8")
+    else:
+        WARN_CACHE.unlink(missing_ok=True)
     return warn
