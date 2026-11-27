@@ -3,6 +3,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 sys.path.insert(0, os.environ.get("VZ_APP") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app"))
 from studio import update as UP
+os.environ["no_proxy"] = "127.0.0.1,localhost"     # the fake GitHub is local; a PC proxy (VPN app) would drop it
 fails = []
 def check(n, c, x=""):
     print(("ok   " if c else "FAIL ") + n, "" if c else x)
