@@ -1281,6 +1281,10 @@ class H(BaseHTTPRequestHandler):
 
 
 # ------------------------------------------------------------------ main
+class Server(ThreadingHTTPServer):
+    allow_reuse_address = not WIN       # on Windows SO_REUSEADDR lets a second engine bind the same port as the first
+
+
 def read_token():
     try:
         return TOKEN_FILE.read_text(encoding="utf-8").strip()
@@ -1320,7 +1324,7 @@ def already_running(argv):
     """another engine owns the port: hand it the files (with its token) and let it open the window"""
     import urllib.request
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/ping", timeout=1.5) as r:
+        with UP.LOCAL.open(f"http://127.0.0.1:{PORT}/api/ping", timeout=1.5) as r:
             if json.loads(r.read()).get("app") != "vizavi":
                 return False
     except Exception:
@@ -1330,7 +1334,7 @@ def already_running(argv):
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{PORT}/api/open", method="POST", data=payload,
                                          headers={"Content-Type": "application/json", "X-VZ-Token": read_token()})
-            urllib.request.urlopen(req, timeout=3).read()
+            UP.LOCAL.open(req, timeout=3).read()
             return True
         except Exception:
             time.sleep(0.7)
@@ -1363,7 +1367,7 @@ def main(argv, open_ui=True):
         ST.token = tok
     ST.pending = [str(Path(p).resolve()) for p in argv]
     try:
-        srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
+        srv = Server(("127.0.0.1", PORT), H)
     except OSError as e:
         print(f"Vizavi Studio could not start: port {PORT} is in use ({e}).", file=sys.stderr)
         return

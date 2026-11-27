@@ -14,6 +14,8 @@ WIN = os.name == "nt"
 NOWIN = 0x08000000 if WIN else 0
 DETACH = (0x00000008 | 0x00000200 | 0x08000000) if WIN else 0     # detached, new group, no window
 API = "https://api.github.com/repos/{repo}/releases/latest"
+# the engine on 127.0.0.1 is never reached through the PC's proxy (a VPN app's proxy drops such requests)
+LOCAL = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 UA = {"User-Agent": "VizaviStudio-updater", "Accept": "application/vnd.github+json"}
 
 
@@ -189,7 +191,7 @@ def _port_open(port):
 def _ping(port):
     try:
         req = urllib.request.Request(f"http://127.0.0.1:{port}/api/ping", headers={"Host": f"127.0.0.1:{port}"})
-        with urllib.request.urlopen(req, timeout=2) as r:
+        with LOCAL.open(req, timeout=2) as r:
             return json.loads(r.read()).get("app") == "vizavi"
     except Exception:
         return False
