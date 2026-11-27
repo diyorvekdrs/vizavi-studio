@@ -258,7 +258,6 @@ def setup():
         update_result()
         threading.Thread(target=update_checker, daemon=True).start()
         threading.Thread(target=housekeeping, daemon=True).start()
-        clean_incoming()
         threading.Thread(target=watcher, daemon=True).start()
     except Exception:
         ST.phase = "failed"
@@ -324,6 +323,7 @@ def housekeeping():
             TR.migrate_old(S)
             TR.purge_old(S, ST.log)
             TR.daily_backup(S, latest_code=lambda d: (core.latest_code_dir(core.Project(d)) or [None])[0], log=ST.log)
+            clean_incoming()
         except Exception as e:
             ST.log(f"Housekeeping skipped: {e}")
         time.sleep(3 * 3600)
@@ -361,7 +361,7 @@ def clean_incoming():
     if INCOMING.exists():
         for d in INCOMING.iterdir():
             try:
-                if time.time() - d.stat().st_mtime > 24 * 3600:
+                if time.time() - d.stat().st_mtime > 6 * 3600:      # uploads are copied into the project within minutes
                     shutil.rmtree(d, ignore_errors=True)
             except OSError:
                 pass
@@ -434,6 +434,12 @@ def watcher():
                             msg = (f"{f.name} in Downloads is for a project called \u201c{name}\u201d, which isn't here. "
                                    f"If it is yours, drag the zip onto the window.")
                             ST.log(msg); ST.toast("warn", msg)
+                        continue
+                    if not core.pack_key_ok(S, man):      # a zip can claim any project name; running its code needs the key
+                        if key not in told:
+                            told.add(key)
+                            ST.log(f"Left {f.name} alone: it does not carry this project's key (made before this "
+                                   f"version, or not from Claude). If it is yours, drag it onto the window.")
                         continue
                     ST.log(f"Found {f.name} in Downloads")
                     submit(f"Process {f.name}", core.process_zip, f, S, CTX,
@@ -626,9 +632,7 @@ def meta():
         "version": VERSION, "can_undo_update": UP.has_backup(APP), "storage": storage_info(S),
         "last_preset": S.get("last_preset"), "hw": getattr(ST, "hw_lines", []),
         "warnings": getattr(ST, "warnings", []),
-        "settings": {k: S.get(k) for k in ("standing_rules", "watch_downloads", "auto_play_preview", "precise_timing",
-                                           "uzbek_model", "projects_dir", "downloads_dir", "whisper_model",
-                                           "light_effects", "check_updates")},
+        "settings": {k: S.get(k) for k in SETTING_KEYS},
     }
 
 
@@ -807,6 +811,7 @@ def act(a):
     if kind == "approve":
         if pr.state.get("stage") != "preview_ready":
             raise core.UserMessage(f"“{pr.name}” has no preview waiting for approval.")
+        idle_project(pr, "approve")
         queue_job(f"Final of {pr.name}", core.approve_preview, pr, S, CTX, pr=pr, key=f"final:{pr.name}")
     elif kind == "retry":
         tgt = core.retry_target(pr)

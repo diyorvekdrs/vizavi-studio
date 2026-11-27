@@ -177,7 +177,7 @@ Step "Installing the app to $dest ..."
 Get-Process python, pythonw -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$dest\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 if (-not $same) {
-    & robocopy $Source $dest /E /NFL /NDL /NJH /NJS /NP /R:2 /W:1 /XD Projects .venv models .ui_profile .incoming .update __pycache__ /XF settings.json .deps_ok .setup_done .cuda_libs_ok .chromium_ok .torch_cuda_tried .deps_lock.txt .session_token .last_alive | Out-Null
+    & robocopy $Source $dest /E /NFL /NDL /NJH /NJS /NP /R:2 /W:1 /XD Projects .venv models .ui_profile .incoming .update __pycache__ /XF settings.json .deps_ok .deps_warn.json .setup_done .cuda_libs_ok .chromium_ok .torch_cuda_tried .deps_lock.txt .session_token .last_alive | Out-Null
     if ($LASTEXITCODE -ge 8) { Fail "Copying the app failed (robocopy code $LASTEXITCODE). Close Vizavi Studio if it is open and try again." }
     if (Test-Path (Join-Path $Source 'Projects')) {
         Say "Note: the Projects folder inside $Source was NOT copied. To keep those projects, move that folder's contents to the projects folder the app uses (Settings > Projects folder)."

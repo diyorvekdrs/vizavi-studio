@@ -106,7 +106,8 @@ def main():
     Path(a.out).mkdir(parents=True, exist_ok=True)
     zp = Path(a.out) / f"{ep}__{a.kind}_v{ver}.zip"
     info = {"app": "vizavi-studio", "kind": a.kind, "episode": ep, "project": ep, "version": ver,
-            "created": time.strftime("%Y-%m-%d %H:%M:%S"), "made_by": "claude", "note": a.note}
+            "created": time.strftime("%Y-%m-%d %H:%M:%S"), "made_by": "claude", "note": a.note,
+            "pack_key": man.get("pack_key")}
     ch = {}
     if a.size:
         try:

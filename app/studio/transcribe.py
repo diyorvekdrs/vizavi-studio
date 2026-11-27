@@ -300,8 +300,7 @@ def main():
     if a.uz_model and os.environ.get("VIZAVI_FAKE_TRANSCRIBE") != "1":
         try:
             uz_text, uz_backend = run_uzbek(audio, a)
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-            from studio.align import align
+            from vz_align import align
             better, rep = align(words_large, uz_text, trust_text=True)   # Uzbek model's words on large-v3's timing
             if better and len(better) >= 0.5 * max(1, rep["script_words"]):
                 words = [dict(w, src="audio") for w in better]

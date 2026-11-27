@@ -151,7 +151,7 @@ def stage(info, app, progress=None, log=print):
     return new
 
 
-def launch(app, new, python, token, port):
+def _start_helper(mode, app, new, python, token, port):
     """copy this file next to the update and start it as the helper; the caller exits right after"""
     app = Path(app)
     helper = app / ".update" / "helper.py"
@@ -160,22 +160,17 @@ def launch(app, new, python, token, port):
     if WIN and pyw.name.lower() == "python.exe" and pyw.with_name("pythonw.exe").exists():
         pyw = pyw.with_name("pythonw.exe")
     env = dict(os.environ, VZ_TOKEN=token)
-    subprocess.Popen([str(pyw), "-I", str(helper), "apply", str(app), str(new), str(port)], cwd=str(app / ".update"),
+    subprocess.Popen([str(pyw), "-I", str(helper), mode, str(app), str(new), str(port)], cwd=str(app / ".update"),
                      env=env, creationflags=DETACH, close_fds=True, stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def launch(app, new, python, token, port):
+    _start_helper("apply", app, new, python, token, port)
 
 
 def restore_launch(app, python, token, port):
-    app = Path(app)
-    helper = app / ".update" / "helper.py"
-    shutil.copy2(Path(__file__), helper)
-    env = dict(os.environ, VZ_TOKEN=token)
-    pyw = Path(python)
-    if WIN and pyw.name.lower() == "python.exe" and pyw.with_name("pythonw.exe").exists():
-        pyw = pyw.with_name("pythonw.exe")
-    subprocess.Popen([str(pyw), "-I", str(helper), "restore", str(app), "-", str(port)], cwd=str(app / ".update"),
-                     env=env, creationflags=DETACH, close_fds=True, stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _start_helper("restore", app, "-", python, token, port)
 
 
 def has_backup(app):

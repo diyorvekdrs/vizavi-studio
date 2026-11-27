@@ -338,16 +338,18 @@ def t_edit_file(a):
 
 
 _jobs = {}       # project -> {"proc", "kind", "started", "args"}
+_jobs_lock = threading.Lock()      # Claude may call check twice in parallel
 
 
 def run_job(pr, kind, cmd, cwd):
-    j = _jobs.get(pr.name)
-    if j and j["proc"].poll() is None:
-        raise ToolError(f"A {j['kind']} is still running for this project – call wait (or check again) for its result.")
-    logf = open(cwd / f".{kind}.log", "w", encoding="utf-8")
-    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
-    proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=logf, stderr=subprocess.STDOUT, env=env, creationflags=NOWIN)
-    _jobs[pr.name] = {"proc": proc, "kind": kind, "started": time.time(), "log": cwd / f".{kind}.log", "ws": cwd}
+    with _jobs_lock:
+        j = _jobs.get(pr.name)
+        if j and j["proc"].poll() is None:
+            raise ToolError(f"A {j['kind']} is still running for this project – call wait (or check again) for its result.")
+        logf = open(cwd / f".{kind}.log", "w", encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
+        proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=logf, stderr=subprocess.STDOUT, env=env, creationflags=NOWIN)
+        _jobs[pr.name] = {"proc": proc, "kind": kind, "started": time.time(), "log": cwd / f".{kind}.log", "ws": cwd}
     return wait_job(pr, CHECK_WAIT)
 
 

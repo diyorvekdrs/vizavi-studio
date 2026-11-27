@@ -123,6 +123,14 @@ z1.write_bytes(b"x" * 100); z2.write_bytes(b"y" * 100)
 check("zip_ids differ for different content", core.zip_ids(z1)[1] != core.zip_ids(z2)[1])
 check("zip_ids same content/other name", (shutil.copy2(z1, tmp / "c.zip"), core.zip_ids(z1)[1] == core.zip_ids(tmp / "c.zip")[1])[1])
 
+# a zip in Downloads runs unattended only with its project's key
+S0 = core.load_settings(); S0["projects_dir"] = str(tmp / "KeyProjects")
+kp = core.Project.open("keyed", S0); kp.state["pack_key"] = "k1k1"; kp.save()
+check("pack_key_ok right key", core.pack_key_ok(S0, {"episode": "keyed", "pack_key": "k1k1"}))
+check("pack_key_ok forged: no key / wrong key / no project",
+      not core.pack_key_ok(S0, {"episode": "keyed"}) and not core.pack_key_ok(S0, {"episode": "keyed", "pack_key": "x"})
+      and not core.pack_key_ok(S0, {"episode": "nothere", "pack_key": "k1k1"}))
+
 # order normalisation / validation
 o = OD.normalize({"size": [1081, 1921], "fps": "25", "duration": {"mode": "fixed", "seconds": "abc", "tail": "2"}})
 check("size made even", o["size"][0] % 2 == 0 and o["size"][1] % 2 == 0, o["size"])

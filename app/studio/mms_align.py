@@ -29,7 +29,7 @@ def prog(x):
 
 def normalize(word, vocab):
     """Uzbek Latin word -> characters the aligner knows (a-z and ')."""
-    from studio.align import cyr2lat
+    from vz_align import cyr2lat
     w = cyr2lat(word).lower()
     for a in APOS:
         w = w.replace(a, "'")
